@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -101,10 +101,172 @@
       <path d="M12 3a13 13 0 0 1 0 18" />
       <path d="M12 3a13 13 0 0 0 0 18" />
     </>);
+    const MenuIcon = svgIcon("0 0 24 24", <>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </>);
+    const Volume2 = svgIcon("0 0 24 24", <>
+      <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+    </>);
+    const VolumeX = svgIcon("0 0 24 24", <>
+      <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+      <path d="m16 9 5 5" />
+      <path d="m21 9-5 5" />
+    </>);
 
 
 
-﻿const LANGS = ['en', 'ja', 'zh'];
+const glyphIcon = (viewBox, paths) => ({ className = "" }) => (
+  <svg viewBox={viewBox} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    {paths}
+  </svg>
+);
+
+const AttackIcon = glyphIcon("0 0 24 24", <>
+  <path d="m14.5 5 4.5 4.5" />
+  <path d="M12.5 7 5 14.5V19h4.5L17 11.5 12.5 7Z" />
+  <path d="m10 16 2 2" />
+  <path d="m7 19-2 2" />
+  <path d="m9 17-2-2" />
+</>);
+
+const CardIcon = glyphIcon("0 0 24 24", <>
+  <rect x="7" y="4" width="11" height="15" rx="2" />
+  <path d="M5 7.5v11A1.5 1.5 0 0 0 6.5 20H16" />
+  <path d="M11 9h3" />
+  <path d="M11 13h3" />
+</>);
+
+const RelicBadgeIcon = glyphIcon("0 0 24 24", <>
+  <path d="m12 3 5 4-5 14-5-14 5-4Z" />
+  <path d="M9.5 7h5" />
+</>);
+
+const BurningBloodIcon = glyphIcon("0 0 24 24", <>
+  <path d="M12 4c2.2 3-1 5.2 1.5 7.8A4.5 4.5 0 1 1 7 15.3c0-2.5 1.6-3.8 3-5.7.9-1.2.8-3 2-5.6Z" />
+  <path d="M12 10.5c.9 1-.1 1.8.8 2.8a1.8 1.8 0 1 1-3 1.2c0-1 .8-1.7 1.4-2.5.4-.6.3-1.1.8-1.5Z" />
+</>);
+
+const VajraIcon = glyphIcon("0 0 24 24", <>
+  <path d="m12 3 2.5 4.5L12 12 9.5 7.5 12 3Z" />
+  <path d="m7.5 10.5 4.5 2 4.5-2" />
+  <path d="m12 12-2.5 4.5L12 21l2.5-4.5L12 12Z" />
+</>);
+
+const AnchorRelicIcon = glyphIcon("0 0 24 24", <>
+  <circle cx="12" cy="4" r="1.5" />
+  <path d="M12 6v10" />
+  <path d="M7 12v1a5 5 0 0 0 10 0v-1" />
+  <path d="M7 13H4" />
+  <path d="M17 13h3" />
+  <path d="M9 19h6" />
+</>);
+
+const LanternRelicIcon = glyphIcon("0 0 24 24", <>
+  <path d="M10 6V4h4v2" />
+  <path d="M9 6h6" />
+  <path d="M8 8h8l-1 8H9L8 8Z" />
+  <path d="M10 19h4" />
+  <path d="M12 16v3" />
+</>);
+
+const BagOfMarblesIcon = glyphIcon("0 0 24 24", <>
+  <path d="M7.5 8.5c2.8-1.5 6.2-1.5 9 0" />
+  <path d="M6.5 10.5c.6 6.2 2.6 8.5 5.5 8.5s4.9-2.3 5.5-8.5" />
+  <circle cx="9" cy="13" r="1.4" />
+  <circle cx="12.8" cy="14.5" r="1.4" />
+  <circle cx="15.5" cy="11.8" r="1.2" />
+</>);
+
+const OrichalcumIcon = glyphIcon("0 0 24 24", <>
+  <path d="m12 3 6 5-2 8-4 5-4-5-2-8 6-5Z" />
+  <path d="M12 3v18" />
+  <path d="M6 8h12" />
+</>);
+
+const PenNibIcon = glyphIcon("0 0 24 24", <>
+  <path d="M12 3 17 8 12 21 7 8l5-5Z" />
+  <circle cx="12" cy="11" r="1.2" />
+  <path d="M10.5 18h3" />
+</>);
+
+const ThreadNeedleIcon = glyphIcon("0 0 24 24", <>
+  <path d="M18 5 7 16" />
+  <path d="M18 5h2l-1 2" />
+  <path d="M6.2 17a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4Z" />
+  <path d="M13.5 9.5c1 .3 2 .8 2.8 1.5" />
+</>);
+
+const IceCreamIcon = glyphIcon("0 0 24 24", <>
+  <path d="M8 11a2.5 2.5 0 1 1 3.4-2.3A2.8 2.8 0 1 1 16 11" />
+  <path d="M9 11h7" />
+  <path d="m10.5 11 1.5 9 1.5-9" />
+</>);
+
+const ShovelIcon = glyphIcon("0 0 24 24", <>
+  <path d="m15 3 6 6" />
+  <path d="M13 5 7 11" />
+  <path d="M6 12c-2.1 2.1-3.2 5-.8 7.4C7.6 21.8 10.5 20.7 12.6 18.6L6 12Z" />
+</>);
+
+const RingOfTheSnakeIcon = glyphIcon("0 0 24 24", <>
+  <path d="M12 6a6 6 0 1 0 0 12c2.2 0 4-1.3 4-3 0-1.4-1.1-2.4-2.7-2.4h-1.1c-1.4 0-2.2-.7-2.2-1.8 0-1.3 1.2-2.3 2.8-2.3 1.2 0 2.3.4 3.2 1.1" />
+  <circle cx="16.8" cy="9.6" r="0.5" />
+  <path d="m18 10 2 1" />
+</>);
+
+const CrackedCoreIcon = glyphIcon("0 0 24 24", <>
+  <path d="m12 3 6 3.5v7L12 21 6 13.5v-7L12 3Z" />
+  <path d="m13 7-2 5h2l-2 5" />
+</>);
+
+const PureWaterIcon = glyphIcon("0 0 24 24", <>
+  <path d="M12 4c3 4-2.5 5.5-2.5 9a2.5 2.5 0 0 0 5 0c0-3.5-5.5-5-2.5-9Z" />
+  <path d="M7 19c1.5-1 8.5-1 10 0" />
+  <path d="M8 21c1-.7 7-.7 8 0" />
+</>);
+
+const OmenForgeIcon = glyphIcon("0 0 24 24", <>
+  <path d="M6 14h8l-1.5 4h-5L6 14Z" />
+  <path d="M14 14h4" />
+  <path d="M16 10c1.7 1.7.9 3.2-.2 4" />
+  <path d="M10 6c1.5 2-.8 3 .8 4.7a2.2 2.2 0 1 1-3.7 1.5c0-1.4.9-2.1 1.7-3.2.8-1 .7-1.8 1.2-3Z" />
+</>);
+
+const MeatOnTheBoneIcon = glyphIcon("0 0 24 24", <>
+  <path d="M7 8a1.8 1.8 0 1 1-3.2-1.1A1.8 1.8 0 0 1 7 8Z" />
+  <path d="M17 16a1.8 1.8 0 1 1 3.2 1.1A1.8 1.8 0 0 1 17 16Z" />
+  <path d="M6.2 9.2 14.8 17.8" />
+  <path d="M9 7c2.3-1.4 4.6-1.4 6.9.9 2.3 2.3 2.2 4.7.8 7" />
+</>);
+
+const RELIC_ICON_MAP = {
+  'Burning Blood': BurningBloodIcon,
+  Vajra: VajraIcon,
+  Anchor: AnchorRelicIcon,
+  Lantern: LanternRelicIcon,
+  'Bag of Marbles': BagOfMarblesIcon,
+  Orichalcum: OrichalcumIcon,
+  'Pen Nib': PenNibIcon,
+  'Thread and Needle': ThreadNeedleIcon,
+  'Ice Cream': IceCreamIcon,
+  Shovel: ShovelIcon,
+  'Ring of the Snake': RingOfTheSnakeIcon,
+  'Cracked Core': CrackedCoreIcon,
+  'Pure Water': PureWaterIcon,
+  'Omen Forge': OmenForgeIcon,
+  'Meat on the Bone': MeatOnTheBoneIcon
+};
+
+const RelicIcon = ({ relicName, className = "w-4 h-4" }) => {
+  const IconComponent = RELIC_ICON_MAP[relicName] || RelicBadgeIcon;
+  return <IconComponent className={className} />;
+};
+
+const LANGS = ['en', 'ja', 'zh'];
 const CHARACTER_TEXT = {
   IRONCLAD: { name: { en: 'The Ironclad', ja: 'アイアンクラッド', zh: '铁甲战士' } },
   SILENT: { name: { en: 'The Silent', ja: 'サイレント', zh: '寂静猎手' } },
@@ -158,6 +320,11 @@ const LOCALIZATION_UI = {
   ui_volume: { en: "UI Volume", ja: "UI音量", zh: "界面音量" },
   combat_volume: { en: "Combat Volume", ja: "戦闘音量", zh: "战斗音量" },
   achievement_volume: { en: "Achievement Volume", ja: "実績音量", zh: "成就音量" },
+  menu: { en: "Menu", ja: "メニュー", zh: "菜单" },
+  close: { en: "Close", ja: "閉じる", zh: "关闭" },
+  mute: { en: "Mute", ja: "ミュート", zh: "静音" },
+  unmute: { en: "Unmute", ja: "ミュート解除", zh: "取消静音" },
+  return_to_title: { en: "Return to Title", ja: "タイトルへ戻る", zh: "返回标题" },
   deck: { en: "Deck", ja: "デッキ", zh: "牌组" },
   spire_map: { en: "Spire Map", ja: "マップ", zh: "地图" },
   act: { en: "Act", ja: "幕", zh: "章节" },
@@ -228,6 +395,8 @@ const CARD_NAME_TRANSLATIONS = {
   "Blasphemy": { ja: "冒涜", zh: "亵渎" },
   "Sash Whip": { ja: "帯打ち", zh: "缎带鞭" },
   "Cut Through Fate": { ja: "運命を断つ", zh: "斩断命运" },
+  "Like Water": { ja: "水の如く", zh: "静水流深" },
+  "Foresight": { ja: "先見", zh: "预见" },
   "Soul Strike": { ja: "魂の一撃", zh: "灵魂打击" },
   "Bone Wall": { ja: "骨の壁", zh: "白骨之墙" },
   "Dark Bargain": { ja: "闇の取引", zh: "黑暗交易" },
@@ -238,6 +407,8 @@ const CARD_NAME_TRANSLATIONS = {
   "Corpse Explosion": { ja: "死体爆発", zh: "尸爆" },
   "Ritual Dagger": { ja: "儀式の短剣", zh: "仪式匕首" },
   "Spectral Shield": { ja: "幽体の盾", zh: "幽魂护盾" },
+  "Grave Pact": { ja: "墓所の契約", zh: "墓园契约" },
+  "Soul Furnace": { ja: "魂の炉", zh: "灵魂熔炉" },
   "Wound": { ja: "傷", zh: "创伤" }
 };
 const RELIC_NAME_TRANSLATIONS = {
@@ -268,7 +439,10 @@ const translateGeneratedText = (text, lang) => {
     ? [
         [/^Deal (\d+) damage to ALL enemies each turn\.$/, '$1ダメージを毎ターンすべての敵に与える。'],
         [/^Deal (\d+) damage to ALL enemies\.$/, 'すべての敵に$1ダメージを与える。'],
+        [/^Deal (\d+) damage to ALL enemies 2 times\.$/, 'すべての敵に$1ダメージを2回与える。'],
         [/^Deal (\d+) damage randomly\.$/, 'ランダムな対象に$1ダメージを与える。'],
+        [/^Deal (\d+) damage 2 times\. Apply (\d+) Weak\.$/, '$1ダメージを2回与え、脱力を$2付与する。'],
+        [/^Deal (\d+) damage 3 times\. Apply (\d+) Vulnerable\.$/, '$1ダメージを3回与え、弱体を$2付与する。'],
         [/^Deal (\d+) damage \+ (\d+) for ALL 'Strike' cards\.$/, '$1ダメージを与える。さらにすべての「ストライク」カード1枚につき+$2ダメージ。'],
         [/^Deal (\d+) damage\. Apply (\d+) Vulnerable\.$/, '$1ダメージを与え、弱体を$2付与する。'],
         [/^Deal (\d+) damage\. Apply (\d+) Weak\.$/, '$1ダメージを与え、脱力を$2付与する。'],
@@ -282,6 +456,8 @@ const translateGeneratedText = (text, lang) => {
         [/^Gain (\d+) Block\.$/, '$1ブロックを得る。'],
         [/^Gain (\d+) Strength\. Draw (\d+) card[s]?\.$/, '筋力を$1得て、カードを$2枚引く。'],
         [/^Gain (\d+) Strength\.$/, '筋力を$1得る。'],
+        [/^At the start of each turn, gain (\d+) Strength\.$/, '各ターン開始時に筋力を$1得る。'],
+        [/^The first card you play each turn is played twice\.$/, '各ターン最初にプレイしたカードを2回発動する。'],
         [/^Apply (\d+) Weak and Vulnerable\.$/, '脱力と弱体をそれぞれ$1付与する。'],
         [/^Apply (\d+) Vulnerable\.$/, '弱体を$1付与する。'],
         [/^Double your Strength\.$/, '自分の筋力を2倍にする。'],
@@ -296,6 +472,7 @@ const translateGeneratedText = (text, lang) => {
         [/^Apply (\d+) Vulnerable to the enemy at the start of combat\.$/, '戦闘開始時、敵に弱体を$1付与する。'],
         [/^Every (\d+)(?:st|nd|rd|th) card you play deals double damage\.$/, '$1枚目ごとのカードが2倍ダメージを与える。'],
         [/^At the start of each turn, gain (\d+) Block\.$/, '各ターン開始時に$1ブロックを得る。'],
+        [/^Draw (\d+) additional card[s]? each turn\.$/, '各ターン追加でカードを$1枚引く。'],
         [/^Energy is conserved\.$/, 'エナジーを持ち越す。'],
         [/^You can now Dig for loot at Rest Sites\.$/, '休憩所で発掘して戦利品を得られる。'],
         [/^Start each combat with (\d+) Block and apply (\d+) Weak\.$/, '各戦闘開始時に$1ブロックを得て、脱力を$2付与する。'],
@@ -306,7 +483,10 @@ const translateGeneratedText = (text, lang) => {
     : [
         [/^Deal (\d+) damage to ALL enemies each turn\.$/, '每回合对所有敌人造成$1点伤害。'],
         [/^Deal (\d+) damage to ALL enemies\.$/, '对所有敌人造成$1点伤害。'],
+        [/^Deal (\d+) damage to ALL enemies 2 times\.$/, '对所有敌人造成2次$1点伤害。'],
         [/^Deal (\d+) damage randomly\.$/, '随机造成$1点伤害。'],
+        [/^Deal (\d+) damage 2 times\. Apply (\d+) Weak\.$/, '造成2次$1点伤害。施加$2层虚弱。'],
+        [/^Deal (\d+) damage 3 times\. Apply (\d+) Vulnerable\.$/, '造成3次$1点伤害。施加$2层易伤。'],
         [/^Deal (\d+) damage \+ (\d+) for ALL 'Strike' cards\.$/, '造成$1点伤害。每有一张“打击”牌，额外造成$2点伤害。'],
         [/^Deal (\d+) damage\. Apply (\d+) Vulnerable\.$/, '造成$1点伤害。施加$2层易伤。'],
         [/^Deal (\d+) damage\. Apply (\d+) Weak\.$/, '造成$1点伤害。施加$2层虚弱。'],
@@ -320,6 +500,8 @@ const translateGeneratedText = (text, lang) => {
         [/^Gain (\d+) Block\.$/, '获得$1点格挡。'],
         [/^Gain (\d+) Strength\. Draw (\d+) card[s]?\.$/, '获得$1点力量，并抽$2张牌。'],
         [/^Gain (\d+) Strength\.$/, '获得$1点力量。'],
+        [/^At the start of each turn, gain (\d+) Strength\.$/, '每回合开始时获得$1点力量。'],
+        [/^The first card you play each turn is played twice\.$/, '你每回合打出的第一张牌会额外结算一次。'],
         [/^Apply (\d+) Weak and Vulnerable\.$/, '施加$1层虚弱和易伤。'],
         [/^Apply (\d+) Vulnerable\.$/, '施加$1层易伤。'],
         [/^Double your Strength\.$/, '使你的力量翻倍。'],
@@ -334,6 +516,7 @@ const translateGeneratedText = (text, lang) => {
         [/^Apply (\d+) Vulnerable to the enemy at the start of combat\.$/, '战斗开始时，对敌人施加$1层易伤。'],
         [/^Every (\d+)(?:st|nd|rd|th) card you play deals double damage\.$/, '你每打出第$1张牌时，其伤害翻倍。'],
         [/^At the start of each turn, gain (\d+) Block\.$/, '每回合开始时获得$1点格挡。'],
+        [/^Draw (\d+) additional card[s]? each turn\.$/, '每回合额外抽$1张牌。'],
         [/^Energy is conserved\.$/, '能量会被保留。'],
         [/^You can now Dig for loot at Rest Sites\.$/, '现在你可以在休息点挖掘宝物。'],
         [/^Start each combat with (\d+) Block and apply (\d+) Weak\.$/, '每场战斗开始时获得$1点格挡，并施加$2层虚弱。'],
@@ -557,7 +740,7 @@ const LOCALIZATION_ACHIEVEMENT_DEFS = [
     isComplete: (stats) => stats.highestActCleared >= 1,
     rewards: {
       characters: ['WATCHER'],
-      cards: ['Eruption', 'Vigilance', 'Flurry of Blows', 'Empty Fist', 'Halt', 'Bowling Bash', 'Tantrum', 'Wallop', 'Vault', 'Blasphemy', 'Sash Whip', 'Cut Through Fate'],
+      cards: ['Eruption', 'Vigilance', 'Flurry of Blows', 'Empty Fist', 'Halt', 'Bowling Bash', 'Tantrum', 'Wallop', 'Vault', 'Blasphemy', 'Sash Whip', 'Cut Through Fate', 'Like Water', 'Foresight'],
       relics: ['Pure Water', 'Shovel']
     }
   },
@@ -583,7 +766,7 @@ const LOCALIZATION_ACHIEVEMENT_DEFS = [
     isComplete: (stats) => stats.totalEnemiesDefeated >= 8,
     rewards: {
       characters: ['NECROBINDER'],
-      cards: ['Reap', 'Animate', 'Soul Strike', 'Bone Wall', 'Dark Bargain', 'Grave Dig', 'Summon Horde', 'Death Knell', 'Siphon', 'Corpse Explosion', 'Ritual Dagger', 'Spectral Shield'],
+      cards: ['Reap', 'Animate', 'Soul Strike', 'Bone Wall', 'Dark Bargain', 'Grave Dig', 'Summon Horde', 'Death Knell', 'Siphon', 'Corpse Explosion', 'Ritual Dagger', 'Spectral Shield', 'Grave Pact', 'Soul Furnace'],
       relics: ['Omen Forge', 'Meat on the Bone']
     }
   },
@@ -756,7 +939,7 @@ const renderTextWithIcons = (text) => {
   const parts = text.split(/(damage|Dmg|Block|HP)/g);
   return parts.map((part, i) => {
     if (part === 'damage' || part === 'Dmg') {
-      return <span key={i} className="inline-flex items-center text-red-400 font-bold mx-0.5 drop-shadow-sm"><Sword className="w-3.5 h-3.5 mr-0.5" />{part}</span>;
+      return <span key={i} className="inline-flex items-center text-red-400 font-bold mx-0.5 drop-shadow-sm"><AttackIcon className="w-3.5 h-3.5 mr-0.5" />{part}</span>;
     }
     if (part === 'Block') {
       return <span key={i} className="inline-flex items-center text-blue-400 font-bold mx-0.5 drop-shadow-sm"><Shield className="w-3.5 h-3.5 mr-0.5" />{part}</span>;
@@ -766,6 +949,43 @@ const renderTextWithIcons = (text) => {
     }
     return <span key={i}>{part}</span>;
   });
+};
+
+const renderFloatingEffectText = (text, type) => {
+  if (!text) return null;
+  const parts = String(text).split(/(Gold|damage|Dmg|Block|HP)/g);
+  return parts.filter(Boolean).map((part, index) => {
+    if (part === 'Gold') return <span key={index} className="text-amber-300">{part}</span>;
+    if (part === 'damage' || part === 'Dmg') return <span key={index} className="text-red-400">{part}</span>;
+    if (part === 'Block') return <span key={index} className="text-blue-300">{part}</span>;
+    if (part === 'HP') {
+      const hpColor = type === 'damage' ? 'text-red-400' : 'text-green-300';
+      return <span key={index} className={hpColor}>{part}</span>;
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
+const splitCardDescriptionLines = (text) => {
+  if (!text || typeof text !== 'string') return [];
+  return text
+    .split(/(?<=\.)\s+(?=[A-Z])|(?<=[\u3002\uFF01\uFF1F])/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+};
+
+const renderCardDescription = (text) => {
+  const lines = splitCardDescriptionLines(text);
+  if (lines.length === 0) return null;
+  return (
+    <div className="w-full flex flex-col items-center justify-center gap-1">
+      {lines.map((line, index) => (
+        <div key={`${line}-${index}`} className="w-full text-center break-words">
+          {renderTextWithIcons(line)}
+        </div>
+      ))}
+    </div>
+  );
 };
 
 // --- TRANSLATION DICTIONARIES ---
@@ -791,20 +1011,118 @@ const CHARACTERS = {
   WATCHER: { 
     name: CHARACTER_TEXT.WATCHER.name, hp: 72, color: "text-purple-400", icon: <Eye className="w-8 h-8" />,
     relics: ["Pure Water"], deck: ["Strike", "Strike", "Strike", "Strike", "Defend", "Defend", "Defend", "Defend", "Eruption", "Vigilance"],
-    cardPool: ["Flurry of Blows", "Empty Fist", "Halt", "Bowling Bash", "Tantrum", "Wallop", "Vault", "Blasphemy", "Sash Whip", "Cut Through Fate"]
+    cardPool: ["Flurry of Blows", "Empty Fist", "Halt", "Bowling Bash", "Tantrum", "Wallop", "Vault", "Blasphemy", "Sash Whip", "Cut Through Fate", "Like Water", "Foresight"]
   },
   NECROBINDER: { 
     name: CHARACTER_TEXT.NECROBINDER.name, hp: 70, color: "text-indigo-400", icon: <Skull className="w-8 h-8" />,
     relics: ["Omen Forge"], deck: ["Strike", "Strike", "Strike", "Strike", "Defend", "Defend", "Defend", "Defend", "Reap", "Animate"],
-    cardPool: ["Soul Strike", "Bone Wall", "Dark Bargain", "Grave Dig", "Summon Horde", "Death Knell", "Siphon", "Corpse Explosion", "Ritual Dagger", "Spectral Shield"]
+    cardPool: ["Soul Strike", "Bone Wall", "Dark Bargain", "Grave Dig", "Summon Horde", "Death Knell", "Siphon", "Corpse Explosion", "Ritual Dagger", "Spectral Shield", "Grave Pact", "Soul Furnace"]
   }
 };
 
 const RELIC_POOL = LOCALIZATION_RELIC_POOL;
 const RELIC_DICT = LOCALIZATION_RELIC_DICT;
-const CARD_DICT = LOCALIZATION_CARD_DICT;
+let CARD_DICT = {};
 const ENEMY_LIBRARY = LOCALIZATION_ENEMY_LIBRARY;
 const ENEMY_MOVE_LABELS = LOCALIZATION_ENEMY_MOVE_LABELS;
+const parseCsvLine = (line) => {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      values.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  values.push(current);
+  return values;
+};
+
+const CARD_TYPE_META = {
+  Attack: { label: 'Attack', badgeClass: 'bg-red-500/15 text-red-200 border-red-400/35' },
+  Skill: { label: 'Skill', badgeClass: 'bg-sky-500/15 text-sky-200 border-sky-400/35' },
+  Power: { label: 'Power', badgeClass: 'bg-violet-500/15 text-violet-200 border-violet-400/35' },
+  Status: { label: 'Status', badgeClass: 'bg-slate-500/15 text-slate-200 border-slate-400/35' }
+};
+
+const CARD_RARITY_META = {
+  Common: { label: 'Common', badgeClass: 'text-slate-400', glowClass: '', borderClass: '' },
+  Uncommon: { label: 'Uncommon', badgeClass: 'text-emerald-300', glowClass: 'shadow-[0_0_22px_rgba(52,211,153,0.22)]', borderClass: 'border-emerald-400/45' },
+  Rare: { label: 'Rare', badgeClass: 'text-amber-300', glowClass: 'shadow-[0_0_26px_rgba(251,191,36,0.28)]', borderClass: 'border-amber-300/55' }
+};
+
+const UNCOMMON_CARDS = new Set([
+  'Inflame', 'Shockwave', 'Carnage', 'Acrobatics', 'Bouncing Flask', 'Catalyst', 'Noxious Fumes', 'Dash',
+  'Glacier', 'Hologram', 'Defragment', 'Bowling Bash', 'Tantrum', 'Wallop', 'Cut Through Fate',
+  'Dark Bargain', 'Summon Horde', 'Siphon', 'Ritual Dagger', 'Like Water', 'Grave Pact'
+]);
+
+const RARE_CARDS = new Set([
+  'Bludgeon', 'Demon Form', 'Limit Break', 'Adrenaline', 'Echo Form', 'Core Surge',
+  'Vault', 'Blasphemy', 'Death Knell', 'Corpse Explosion', 'Spectral Shield', 'Foresight', 'Soul Furnace'
+]);
+
+const getCardRarity = (cardName, explicitRarity) => {
+  if (explicitRarity) return explicitRarity;
+  const baseName = cardName.replace('+', '');
+  if (RARE_CARDS.has(baseName)) return 'Rare';
+  if (UNCOMMON_CARDS.has(baseName)) return 'Uncommon';
+  return 'Common';
+};
+const parseEffectSpec = (value) => {
+  const spec = {};
+  if (!value) return spec;
+  value.split(';').forEach((part) => {
+    const [rawKey, rawValue = ''] = part.split('=');
+    const key = rawKey?.trim();
+    if (!key) return;
+    spec[key] = rawValue.trim();
+  });
+  return spec;
+};
+const parseCardsCsv = (text) => {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) return {};
+  const headers = parseCsvLine(lines[0]);
+  const cards = {};
+  lines.slice(1).forEach((line) => {
+    const cells = parseCsvLine(line);
+    const row = Object.fromEntries(headers.map((header, index) => [header, cells[index] || '']));
+    cards[row.name] = {
+      character: row.character,
+      type: row.type,
+      rarity: getCardRarity(row.name, row.rarity),
+      n: { en: row.name, ja: row.name, zh: row.name },
+      d: { en: row.desc, ja: row.desc, zh: row.desc },
+      dUp: { en: row.up_desc, ja: row.up_desc, zh: row.up_desc },
+      effects: parseEffectSpec(row.effects),
+      effectsUp: parseEffectSpec(row.effects_up)
+    };
+  });
+  return cards;
+};
+const getCardDefinition = (cardName) => {
+  const baseName = cardName.replace('+', '');
+  const data = CARD_DICT[baseName];
+  if (!data) return null;
+  return {
+    ...data,
+    baseName,
+    isUpgraded: cardName.endsWith('+'),
+    effectSpec: cardName.endsWith('+') ? data.effectsUp : data.effects
+  };
+};
 const getEnemyCodexKey = (tier, nameEn) => `${tier}:${nameEn}`;
 const buildEnemyCodexCatalog = () => {
   return ['normal', 'elite', 'boss'].flatMap((tier) =>
@@ -851,7 +1169,8 @@ const createDefaultMetaProgress = () => ({
     masterVolume: 70,
     uiVolume: 80,
     combatVolume: 75,
-    achievementVolume: 90
+    achievementVolume: 90,
+    isMuted: false
   },
   unlockedCharacters: [...STARTER_UNLOCKED_CHARACTERS],
   unlockedCards: [...STARTER_UNLOCKED_CARDS],
@@ -944,6 +1263,45 @@ const getStateRewardRelicPool = (state) => {
   return unlockedPool.length > 0 ? unlockedPool : RELIC_POOL;
 };
 
+const UNCOMMON_RELICS = new Set(['Vajra', 'Anchor', 'Lantern', 'Bag of Marbles', 'Orichalcum', 'Thread and Needle', 'Pure Water']);
+const RARE_RELICS = new Set(['Pen Nib', 'Ice Cream', 'Shovel', 'Meat on the Bone', 'Omen Forge']);
+
+const getRelicRarity = (relicName) => {
+  if (RARE_RELICS.has(relicName)) return 'Rare';
+  if (UNCOMMON_RELICS.has(relicName)) return 'Uncommon';
+  return 'Common';
+};
+
+const pickRewardCard = (state, tier = 'normal') => {
+  const pool = getStateRewardCardPool(state);
+  const rareCards = pool.filter(card => getCardRarity(card) === 'Rare');
+  const uncommonCards = pool.filter(card => getCardRarity(card) === 'Uncommon');
+
+  if (tier === 'boss') {
+    return getRandomItem(rareCards.length > 0 ? rareCards : uncommonCards.length > 0 ? uncommonCards : pool);
+  }
+  if (tier === 'elite') {
+    const upgradedPool = [...uncommonCards, ...rareCards];
+    return getRandomItem(upgradedPool.length > 0 ? upgradedPool : pool);
+  }
+  return getRandomItem(pool);
+};
+
+const pickRewardRelic = (state, tier = 'normal') => {
+  const pool = getStateRewardRelicPool(state);
+  const rareRelics = pool.filter(relic => getRelicRarity(relic) === 'Rare');
+  const uncommonRelics = pool.filter(relic => getRelicRarity(relic) === 'Uncommon');
+
+  if (tier === 'boss') {
+    return getRandomItem(rareRelics.length > 0 ? rareRelics : uncommonRelics.length > 0 ? uncommonRelics : pool);
+  }
+  if (tier === 'elite') {
+    const upgradedPool = [...uncommonRelics, ...rareRelics];
+    return getRandomItem(upgradedPool.length > 0 ? upgradedPool : pool);
+  }
+  return getRandomItem(pool);
+};
+
 const getTranslatedCard = (cardName, lang) => {
   const isUpgraded = cardName.endsWith('+');
   const baseName = cardName.replace('+', '');
@@ -953,7 +1311,9 @@ const getTranslatedCard = (cardName, lang) => {
   const localizedDesc = isUpgraded ? data.dUp[lang] : data.d[lang];
   return {
     name: `${baseLocalizedName}${isUpgraded ? '+' : ''}`,
-    desc: translateGeneratedText(localizedDesc, lang)
+    desc: translateGeneratedText(localizedDesc, lang),
+    type: data.type,
+    rarity: getCardRarity(baseName, data.rarity)
   };
 };
 
@@ -967,20 +1327,29 @@ const getTranslatedRelic = (relicName, lang) => {
 // --- COMBAT ENGINE ---
 
 const drawCards = (c, num) => {
-  let drawn = [];
-  while (drawn.length < num) {
+  const drawn = [...(c.hand || [])];
+  let drawnCount = 0;
+  while (drawnCount < num) {
     if (c.drawPile.length === 0) {
       if (c.discardPile.length === 0) break;
       c.drawPile = [...c.discardPile].sort(() => Math.random() - 0.5);
       c.discardPile = [];
     }
     drawn.push(c.drawPile.pop());
+    drawnCount += 1;
   }
   c.hand = drawn;
 };
 
-const calcDamage = (base, combat) => {
-  let dmg = base + combat.playerStrength;
+const getNumericEffect = (spec, key, fallback = 0) => {
+  const raw = spec?.[key];
+  if (raw === undefined || raw === '') return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const calcDamage = (base, combat, damageMultiplier = 1) => {
+  let dmg = Math.floor((base + combat.playerStrength) * damageMultiplier);
   if (combat.enemyVuln > 0) dmg = Math.floor(dmg * 1.5);
   return dmg;
 };
@@ -989,6 +1358,7 @@ const applyDamageToEnemy = (dmg, combat) => {
   let actualDmg = Math.max(0, dmg - combat.enemyBlock);
   combat.enemyBlock = Math.max(0, combat.enemyBlock - dmg);
   combat.enemyHp -= actualDmg;
+  return actualDmg;
 };
 
 const applyDamageToPlayer = (base, s, c) => {
@@ -1000,99 +1370,64 @@ const applyDamageToPlayer = (base, s, c) => {
   s.hp -= actualDmg;
 };
 
-const executeCard = (cardName, s, c) => {
-  if (cardName === 'Wound') return; 
-  
-  const isUpgraded = cardName.endsWith('+');
-  const baseName = cardName.replace('+', '');
-  let mult = isUpgraded ? 1.5 : 1;
+const executeCard = (cardName, s, c, options = {}) => {
+  const definition = getCardDefinition(cardName);
+  if (!definition || definition.effectSpec.unplayable === '1') return definition;
 
-  if (s.relics.includes('Pen Nib')) {
-      c.cardsPlayed = (c.cardsPlayed || 0) + 1;
-      if (c.cardsPlayed % 3 === 0) mult *= 2;
+  const spec = definition.effectSpec;
+  const damageMultiplier = options.damageMultiplier ?? 1;
+  const onDamage = options.onDamage;
+  const hits = getNumericEffect(spec, 'hits', 1);
+  const damage = getNumericEffect(spec, 'damage', 0);
+  const block = getNumericEffect(spec, 'block', 0);
+  const draw = getNumericEffect(spec, 'draw', 0);
+  const strength = getNumericEffect(spec, 'strength', 0);
+  const vulnerable = getNumericEffect(spec, 'vulnerable', 0);
+  const weak = getNumericEffect(spec, 'weak', 0);
+  const heal = getNumericEffect(spec, 'heal', 0);
+  const selfDamage = getNumericEffect(spec, 'self_damage', 0);
+  const claw = spec.claw ? spec.claw.split(':').map(Number) : null;
+  const perfected = spec.perfected ? spec.perfected.split(':').map(Number) : null;
+
+  if (damage > 0) {
+    for (let i = 0; i < hits; i += 1) {
+      const actualDamage = applyDamageToEnemy(calcDamage(damage, c, damageMultiplier), c);
+      if (actualDamage > 0 && onDamage) onDamage(actualDamage, i);
+    }
+  }
+  if (block > 0) c.playerBlock += block;
+  if (draw > 0) drawCards(c, draw);
+  if (strength > 0) c.playerStrength += strength;
+  if (vulnerable > 0) c.enemyVuln += vulnerable;
+  if (weak > 0) c.enemyWeak += weak;
+  if (heal > 0) s.hp = Math.min(s.maxHp, s.hp + heal);
+  if (selfDamage > 0) s.hp = Math.max(1, s.hp - selfDamage);
+  if (spec.double_strength === '1') c.playerStrength *= 2;
+  if (perfected) {
+    const [baseDamage, perStrikeBonus] = perfected;
+    const strikeCount = s.deck.filter(card => card.includes('Strike')).length;
+    const actualDamage = applyDamageToEnemy(calcDamage(baseDamage + strikeCount * perStrikeBonus, c, damageMultiplier), c);
+    if (actualDamage > 0 && onDamage) onDamage(actualDamage, 0);
+  }
+  if (claw) {
+    const [baseDamage, growth] = claw;
+    c.clawBase = c.clawBase || baseDamage;
+    const actualDamage = applyDamageToEnemy(calcDamage(c.clawBase, c, damageMultiplier), c);
+    if (actualDamage > 0 && onDamage) onDamage(actualDamage, 0);
+    c.clawBase += growth;
+  }
+  if (spec.power) {
+    const [powerKey, rawValue] = spec.power.split(':');
+    const powerValue = Number(rawValue || 0);
+    if (powerKey === 'strength') c.playerStrength += powerValue;
+    if (powerKey === 'demon_form') c.activePowers.demonForm += powerValue;
+    if (powerKey === 'noxious_fumes') c.activePowers.noxiousFumes += powerValue;
+    if (powerKey === 'echo_form') c.activePowers.echoForm += Math.max(1, powerValue);
+    if (powerKey === 'block_each_turn') c.activePowers.blockEachTurn += powerValue;
+    if (powerKey === 'draw_each_turn') c.activePowers.drawEachTurn += powerValue;
   }
 
-  if (s.relics.includes('Cracked Core')) c.playerBlock += 2;
-
-  const dmg = (val) => applyDamageToEnemy(calcDamage(Math.floor(val * mult), c), c);
-  const blk = (val) => c.playerBlock += Math.floor(val * mult);
-  const heal = (val) => s.hp = Math.min(s.maxHp, s.hp + Math.floor(val * mult));
-  const str = (val) => c.playerStrength += Math.floor(val * mult);
-  const vuln = (val) => c.enemyVuln += Math.floor(val * mult);
-  const weak = (val) => c.enemyWeak += Math.floor(val * mult);
-
-  switch(baseName) {
-    case 'Strike': dmg(12); break;
-    case 'Defend': blk(10); break;
-    case 'Bash': dmg(16); vuln(2); break;
-    case 'Iron Wave': blk(10); dmg(10); break;
-    case 'Perfected Strike': dmg(12 + (s.deck.filter(card => card.includes('Strike')).length * 4)); break;
-    case 'Pommel Strike': dmg(20); break;
-    case 'Shrug It Off': blk(16); heal(2); break;
-    case 'Cleave': dmg(16); break;
-    case 'Inflame': str(3); break;
-    case 'Shockwave': weak(3); vuln(3); break;
-    case 'Bludgeon': dmg(45); break;
-    case 'Demon Form': str(5); break;
-    case 'Limit Break': c.playerStrength *= 2; break;
-    case 'Carnage': dmg(35); break;
-    case 'Survivor': blk(15); break;
-    case 'Neutralize': dmg(8); weak(2); break;
-    case 'Zap': dmg(12); break;
-    case 'Dualcast': dmg(24); break;
-    case 'Eruption': dmg(18); vuln(2); break;
-    case 'Vigilance': blk(16); break;
-    case 'Reap': dmg(12); heal(4); break;
-    case 'Animate': dmg(10); blk(10); break;
-
-    case 'Dagger Spray': dmg(8); break;
-    case 'Backflip': blk(10); drawCards(c, Math.floor(2 * mult)); break;
-    case 'Deadly Poison': dmg(10); weak(2); break;
-    case 'Acrobatics': drawCards(c, Math.floor(3 * mult)); break;
-    case 'Bouncing Flask': dmg(15); break;
-    case 'Adrenaline': str(1); drawCards(c, Math.floor(2 * mult)); break;
-    case 'Catalyst': vuln(5); break;
-    case 'Noxious Fumes': dmg(5); break;
-    case 'Dash': blk(10); dmg(10); break;
-    case 'Cloak And Dagger': blk(6); dmg(6); break;
-
-    case 'Cold Snap': dmg(12); blk(5); break;
-    case 'Ball Lightning': dmg(14); break;
-    case 'Glacier': blk(15); break;
-    case 'Hologram': blk(10); drawCards(c, Math.floor(1 * mult)); break;
-    case 'Defragment': str(2); break;
-    case 'Echo Form': str(5); break;
-    case 'Leap': blk(18); break;
-    case 'Sweeping Beam': dmg(12); break;
-    case 'Claw': 
-        c.clawBase = c.clawBase || 6; 
-        dmg(c.clawBase); 
-        c.clawBase += 4; 
-        break;
-    case 'Core Surge': dmg(22); break;
-
-    case 'Flurry of Blows': dmg(8); break;
-    case 'Empty Fist': dmg(18); break;
-    case 'Halt': blk(14); break;
-    case 'Bowling Bash': dmg(15); break;
-    case 'Tantrum': dmg(20); break;
-    case 'Wallop': dmg(18); blk(18); break;
-    case 'Vault': drawCards(c, Math.floor(3 * mult)); break;
-    case 'Blasphemy': c.playerStrength *= 2; break;
-    case 'Sash Whip': dmg(16); weak(2); break;
-    case 'Cut Through Fate': dmg(14); drawCards(c, Math.floor(1 * mult)); break;
-
-    case 'Soul Strike': dmg(15); heal(2); break;
-    case 'Bone Wall': blk(18); break;
-    case 'Dark Bargain': s.hp = Math.max(1, s.hp - 5); str(3); break;
-    case 'Grave Dig': drawCards(c, Math.floor(2 * mult)); break;
-    case 'Summon Horde': dmg(20); blk(10); break;
-    case 'Death Knell': dmg(35); break;
-    case 'Siphon': dmg(12); heal(8); break;
-    case 'Corpse Explosion': dmg(25); break;
-    case 'Ritual Dagger': dmg(20); break;
-    case 'Spectral Shield': blk(20); break;
-  }
+  return definition;
 };
 
 // --- PROCEDURAL GENERATION ENGINE ---
@@ -1227,18 +1562,33 @@ const generateProceduralRun = (act) => {
 
 // --- ENCOUNTER GENERATORS ---
 
-const getRewardNode = (enemyId) => ({
-  title: COPY.nodes.reward.title,
-  type: "Reward",
-  spriteKey: "event_crystal",
-  icon: <Sparkles className="w-12 h-12 text-yellow-400" />,
-  text: COPY.nodes.reward.text,
-  choices: [
-    { label: COPY.nodes.reward.takeGold, effectText: COPY.nodes.reward.takeGoldEffect, action: (state) => ({ gold: state.gold + 25 }) },
-    { label: COPY.nodes.reward.addCard, effectText: COPY.nodes.reward.addCardEffect, action: (state) => ({ deck: [...state.deck, getRandomItem(getStateRewardCardPool(state))] }) },
-    { label: COPY.nodes.reward.bandage, effectText: COPY.nodes.reward.bandageEffect, action: (state) => ({ hp: Math.min(state.maxHp, state.hp + 15) }) }
-  ]
-});
+const getRewardNode = (enemy) => {
+  const rewardTier = enemy?.tier || 'normal';
+  const goldAmount = rewardTier === 'boss' ? 40 : rewardTier === 'elite' ? 30 : 25;
+  const choices = [
+    { label: COPY.nodes.reward.takeGold, effectText: COPY.nodes.reward.takeGoldEffect, action: (state) => ({ gold: state.gold + goldAmount }) },
+    { label: COPY.nodes.reward.addCard, effectText: COPY.nodes.reward.addCardEffect, action: (state) => ({ deck: [...state.deck, pickRewardCard(state, rewardTier)] }) }
+  ];
+
+  if (rewardTier === 'elite' || rewardTier === 'boss') {
+    choices.push({
+      label: { en: 'Take Relic', ja: '�E��E��E��E��E�b�E�N�E�𓾂�', zh: '?�E��E�?�E��E�' },
+      effectText: { en: 'Gain 1 relic.', ja: '�E��E��E��E��E�b�E�N�E��E�1�E���E��E�B', zh: '?�E��E�1�E��E�?�E��E��E�B' },
+      action: (state) => ({ relics: [...state.relics, pickRewardRelic(state, rewardTier)] })
+    });
+  } else {
+    choices.push({ label: COPY.nodes.reward.bandage, effectText: COPY.nodes.reward.bandageEffect, action: (state) => ({ hp: Math.min(state.maxHp, state.hp + 15) }) });
+  }
+
+  return {
+    title: COPY.nodes.reward.title,
+    type: "Reward",
+    spriteKey: "event_crystal",
+    icon: <Sparkles className="w-12 h-12 text-yellow-400" />,
+    text: COPY.nodes.reward.text,
+    choices
+  };
+};
 
 const getActTransitionNode = (currentAct) => ({
   title: localizeTemplate(COPY.nodes.actTransition.title, { act: currentAct }),
@@ -1321,7 +1671,7 @@ const getVictoryNode = () => ({
 const generateMapRoute = (runContent) => {
   const route = [];
   const createCombatNode = (enemy) => ({
-    title: enemy.names, type: "Combat", spriteKey: enemy.spriteKey, icon: <Sword className="w-12 h-12 text-red-500" />,
+    title: enemy.names, type: "Combat", spriteKey: enemy.spriteKey, icon: <AttackIcon className="w-12 h-12 text-red-500" />,
     text: COPY.nodes.combat.text,
     choices: [
       { label: COPY.nodes.combat.engage, effectText: COPY.nodes.combat.engageEffect, action: (state) => ({ startCombat: enemy.id, stayOnFloor: true }) },
@@ -2129,6 +2479,7 @@ const PixelSprite = ({ spriteKey, charType, className = "" }) => {
 // --- MAIN COMPONENT ---
 
 function App() {
+  const [cardsReady, setCardsReady] = useState(Object.keys(CARD_DICT).length > 0);
   const [lang, setLang] = useState('en');
   const [titleView, setTitleView] = useState('heroes');
   const [collectionTab, setCollectionTab] = useState('IRONCLAD');
@@ -2167,11 +2518,32 @@ function App() {
   const [hoveredCardIndex, setHoveredCardIndex] = useState(null);
   const [rewardEffects, setRewardEffects] = useState([]);
   const [achievementToasts, setAchievementToasts] = useState([]);
+  const [isInGameMenuOpen, setIsInGameMenuOpen] = useState(false);
+  const [inGameMenuTab, setInGameMenuTab] = useState('options');
 
   const audioContextRef = React.useRef(null);
-  const bgmLoopRef = React.useRef(null);
-  const bgmNodesRef = React.useRef([]);
-  const bgmBarRef = React.useRef(0);
+  const bgmAudioRef = React.useRef(null);
+  const bgmTrackRef = React.useRef('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('data/cards.csv')
+      .then((response) => {
+        if (!response.ok) throw new Error(`Failed to load cards.csv: ${response.status}`);
+        return response.text();
+      })
+      .then((text) => {
+        if (cancelled) return;
+        CARD_DICT = parseCardsCsv(text);
+        setCardsReady(true);
+      })
+      .catch((error) => {
+        console.error('Failed to load card data', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshSlotSummaries = useCallback(() => {
     const summaries = {};
@@ -2235,7 +2607,7 @@ function App() {
       if (!savedMeta) return;
       const parsed = JSON.parse(savedMeta);
       const defaults = createDefaultMetaProgress();
-      setMetaProgress({
+      let nextMeta = {
         ...defaults,
         ...parsed,
         stats: { ...defaults.stats, ...(parsed.stats || {}) },
@@ -2245,7 +2617,13 @@ function App() {
         unlockedRelics: mergeUnique(defaults.unlockedRelics, parsed.unlockedRelics || []),
         achievements: { ...defaults.achievements, ...(parsed.achievements || {}) },
         encounteredEnemies: { ...(defaults.encounteredEnemies || {}), ...(parsed.encounteredEnemies || {}) }
+      };
+      Object.entries(nextMeta.achievements).forEach(([achievementId, status]) => {
+        if (!status?.completed) return;
+        const achievement = ACHIEVEMENT_DEFS.find(item => item.id === achievementId);
+        if (achievement) nextMeta = applyAchievementRewards(nextMeta, achievement.rewards);
       });
+      setMetaProgress(nextMeta);
       refreshSlotSummaries();
     } catch (error) {
       console.warn('Failed to load meta progress', error);
@@ -2287,7 +2665,7 @@ function App() {
           ? 'combatVolume'
           : 'uiVolume');
       const channelVolume = Math.max(0, Math.min(1, (settings[channelKey] ?? 0) / 100));
-      const volumeScale = Math.min(4.2, Math.max(0, masterVolume * channelVolume * 2.9));
+      const volumeScale = settings.isMuted ? 0 : Math.min(4.2, Math.max(0, masterVolume * channelVolume * 2.9));
       if (volumeScale <= 0) return;
 
       const makeTone = (frequency, duration, gainValue, waveform = 'square', start = 0, endFrequency = null) => {
@@ -2494,6 +2872,10 @@ function App() {
       if (event.target.closest('button')) {
         playSound('click');
       }
+      const bgmAudio = bgmAudioRef.current;
+      if (bgmAudio && bgmAudio.paused && bgmAudio.volume > 0) {
+        bgmAudio.play().catch(() => {});
+      }
     };
     document.addEventListener('click', handleGlobalClick, true);
     return () => document.removeEventListener('click', handleGlobalClick, true);
@@ -2502,6 +2884,46 @@ function App() {
   const currentRoomType = gameState.combat?.active
     ? (currentNode?.type === 'Boss' ? 'Boss' : currentNode?.type === 'Elite' ? 'Elite' : 'Combat')
     : (currentNode?.type || 'Event');
+
+  const syncBgmPlayback = useCallback(() => {
+    const settings = metaProgress.settings || createDefaultMetaProgress().settings;
+    const isBattleTrack = ['Combat', 'Elite', 'Boss'].includes(currentRoomType);
+    const roomChannel = isBattleTrack ? settings.combatVolume : settings.uiVolume;
+    const roomVolumeScale = currentRoomType === 'Reward' ? 0.55 : 0.8;
+    const bgmVolume = settings.isMuted ? 0 : Math.max(0, Math.min(1, ((settings.masterVolume ?? 0) / 100) * ((roomChannel ?? 0) / 100) * roomVolumeScale));
+    const nextTrack = currentRoomType === 'Reward'
+      ? 'audio/bgm/reward-bgm.mp3'
+      : ['Elite', 'Boss'].includes(currentRoomType)
+        ? 'audio/bgm/boss-fight-bgm.mp3'
+        : currentRoomType === 'Combat'
+          ? 'audio/bgm/normal-fight-bgm.mp3'
+          : currentRoomType === 'Shop'
+            ? 'audio/bgm/merchant-bgm.mp3'
+            : 'audio/bgm/title-bgm.mp3';
+
+    let bgmAudio = bgmAudioRef.current;
+    if (!bgmAudio) {
+      bgmAudio = new Audio();
+      bgmAudio.loop = true;
+      bgmAudio.preload = 'auto';
+      bgmAudioRef.current = bgmAudio;
+    }
+
+    if (bgmTrackRef.current !== nextTrack) {
+      bgmAudio.pause();
+      bgmAudio.src = nextTrack;
+      bgmAudio.currentTime = 0;
+      bgmTrackRef.current = nextTrack;
+    }
+
+    bgmAudio.volume = bgmVolume;
+    if (bgmVolume <= 0) {
+      bgmAudio.pause();
+      return;
+    }
+
+    bgmAudio.play().catch(() => {});
+  }, [currentRoomType, metaProgress.settings]);
 
   const beginRoomTransition = useCallback((applyNextScene) => {
     const modes = ['straight', 'corner-left', 'corner-right'];
@@ -2517,343 +2939,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const ctx = getAudioContext();
-    if (!ctx) return undefined;
+    syncBgmPlayback();
+  }, [syncBgmPlayback]);
 
-    if (bgmLoopRef.current) {
-      window.clearInterval(bgmLoopRef.current);
-      bgmLoopRef.current = null;
-    }
-    bgmNodesRef.current.forEach((node) => {
-      try { node.stop(); } catch (error) {}
-      try { node.disconnect(); } catch (error) {}
-    });
-    bgmNodesRef.current = [];
-
-    const settings = metaProgress.settings || createDefaultMetaProgress().settings;
-    const roomChannel = ['Combat', 'Elite', 'Boss'].includes(currentRoomType) ? settings.combatVolume : settings.uiVolume;
-    const bgmVolume = Math.max(0, Math.min(1, ((settings.masterVolume ?? 0) / 100) * ((roomChannel ?? 0) / 100) * 0.8));
-    if (bgmVolume <= 0) return undefined;
-
-    const themes = {
-      Combat: {
-        step: 0.3,
-        wave: 'sawtooth',
-        bassWave: 'square',
-        padWave: 'triangle',
-        bassCutoff: 480,
-        bassGain: 0.2,
-        leadGain: 0.14,
-        padGain: 0.06,
-        bassBars: [
-          [110, 123.47, 146.83, 123.47, 98, 123.47, 146.83, 164.81],
-          [110, 130.81, 146.83, 164.81, 110, 98, 123.47, 146.83]
-        ],
-        leadBars: [
-          [220, 246.94, 293.66, 329.63, 293.66, 349.23, 392, 349.23],
-          [220, 261.63, 293.66, 349.23, 392, 440, 392, 329.63]
-        ],
-        pads: [[220, 293.66, 349.23], [196, 246.94, 329.63]]
-      },
-      Elite: {
-        step: 0.34,
-        wave: 'triangle',
-        bassWave: 'sawtooth',
-        padWave: 'sine',
-        bassCutoff: 430,
-        bassGain: 0.2,
-        leadGain: 0.145,
-        padGain: 0.055,
-        bassBars: [
-          [98, 116.54, 130.81, 155.56, 130.81, 116.54, 155.56, 174.61],
-          [98, 123.47, 146.83, 155.56, 174.61, 155.56, 146.83, 130.81]
-        ],
-        leadBars: [
-          [196, 233.08, 311.13, 293.66, 349.23, 392, 349.23, 311.13],
-          [233.08, 261.63, 311.13, 369.99, 415.3, 369.99, 311.13, 261.63]
-        ],
-        pads: [[196, 261.63, 311.13], [233.08, 293.66, 369.99]]
-      },
-      Boss: {
-        step: 0.38,
-        wave: 'sawtooth',
-        bassWave: 'sawtooth',
-        padWave: 'triangle',
-        bassCutoff: 360,
-        bassGain: 0.22,
-        leadGain: 0.16,
-        padGain: 0.07,
-        bassBars: [
-          [82.41, 98, 123.47, 155.56, 164.81, 155.56, 123.47, 98],
-          [82.41, 103.83, 123.47, 164.81, 174.61, 155.56, 123.47, 110]
-        ],
-        leadBars: [
-          [164.81, 196, 246.94, 311.13, 369.99, 415.3, 369.99, 311.13],
-          [196, 246.94, 293.66, 369.99, 415.3, 493.88, 415.3, 311.13]
-        ],
-        pads: [[164.81, 246.94, 311.13], [196, 293.66, 369.99]]
-      },
-      Event: {
-        step: 0.36,
-        wave: 'sine',
-        bassWave: 'triangle',
-        padWave: 'sine',
-        bassCutoff: 860,
-        bassGain: 0.14,
-        leadGain: 0.12,
-        padGain: 0.07,
-        bassBars: [
-          [130.81, 146.83, 164.81, 196, 164.81, 146.83, 196, 220],
-          [130.81, 164.81, 174.61, 196, 220, 196, 174.61, 164.81]
-        ],
-        leadBars: [
-          [392, 440, 493.88, 587.33, 659.25, 587.33, 523.25, 440],
-          [440, 493.88, 523.25, 659.25, 739.99, 659.25, 587.33, 493.88]
-        ],
-        pads: [[392, 493.88, 587.33], [440, 523.25, 659.25]]
-      },
-      Rest: {
-        step: 0.44,
-        wave: 'sine',
-        bassWave: 'triangle',
-        padWave: 'sine',
-        bassCutoff: 980,
-        bassGain: 0.13,
-        leadGain: 0.11,
-        padGain: 0.09,
-        bassBars: [
-          [130.81, 146.83, 164.81, 146.83, 130.81, 146.83, 174.61, 196],
-          [130.81, 164.81, 174.61, 196, 174.61, 164.81, 146.83, 130.81]
-        ],
-        leadBars: [
-          [392, 440, 493.88, 587.33, 659.25, 739.99, 659.25, 587.33],
-          [440, 493.88, 587.33, 659.25, 783.99, 880, 783.99, 659.25]
-        ],
-        pads: [[392, 493.88, 659.25], [440, 587.33, 783.99]]
-      },
-      Shop: {
-        step: 0.28,
-        wave: 'square',
-        bassWave: 'triangle',
-        padWave: 'triangle',
-        bassCutoff: 900,
-        bassGain: 0.16,
-        leadGain: 0.155,
-        padGain: 0.05,
-        bassBars: [
-          [164.81, 196, 220, 196, 164.81, 196, 246.94, 261.63],
-          [174.61, 196, 220, 261.63, 246.94, 220, 196, 174.61]
-        ],
-        leadBars: [
-          [523.25, 659.25, 783.99, 659.25, 880, 987.77, 880, 783.99],
-          [659.25, 783.99, 880, 987.77, 1174.66, 987.77, 880, 783.99]
-        ],
-        pads: [[523.25, 659.25, 783.99], [587.33, 783.99, 987.77]]
-      },
-      Victory: {
-        step: 0.4,
-        wave: 'triangle',
-        bassWave: 'triangle',
-        padWave: 'sine',
-        bassCutoff: 760,
-        bassGain: 0.17,
-        leadGain: 0.15,
-        padGain: 0.08,
-        bassBars: [
-          [196, 246.94, 293.66, 392, 440, 392, 293.66, 246.94],
-          [220, 261.63, 329.63, 392, 523.25, 440, 392, 329.63]
-        ],
-        leadBars: [
-          [523.25, 659.25, 783.99, 1046.5, 1174.66, 1318.5, 1174.66, 1046.5],
-          [659.25, 783.99, 1046.5, 1174.66, 1318.5, 1567.98, 1318.5, 1046.5]
-        ],
-        pads: [[523.25, 659.25, 783.99], [659.25, 783.99, 1046.5]]
-      },
-      'Game Over': {
-        step: 0.46,
-        wave: 'triangle',
-        bassWave: 'sawtooth',
-        padWave: 'sine',
-        bassCutoff: 320,
-        bassGain: 0.18,
-        leadGain: 0.1,
-        padGain: 0.05,
-        bassBars: [
-          [82.41, 77.78, 73.42, 69.3, 65.41, 69.3, 73.42, 77.78],
-          [82.41, 73.42, 69.3, 65.41, 61.74, 65.41, 69.3, 73.42]
-        ],
-        leadBars: [
-          [164.81, 155.56, 146.83, 130.81, 123.47, 130.81, 146.83, 155.56],
-          [155.56, 146.83, 130.81, 123.47, 110, 123.47, 130.81, 146.83]
-        ],
-        pads: [[130.81, 164.81, 196], [123.47, 155.56, 185]]
-      },
-      Transition: {
-        step: 0.32,
-        wave: 'triangle',
-        bassWave: 'triangle',
-        padWave: 'sine',
-        bassCutoff: 700,
-        bassGain: 0.16,
-        leadGain: 0.12,
-        padGain: 0.05,
-        bassBars: [
-          [146.83, 164.81, 196, 246.94, 293.66, 246.94, 196, 164.81],
-          [146.83, 174.61, 220, 246.94, 329.63, 293.66, 246.94, 196]
-        ],
-        leadBars: [
-          [293.66, 392, 440, 523.25, 587.33, 523.25, 440, 392],
-          [329.63, 392, 493.88, 587.33, 659.25, 587.33, 493.88, 392]
-        ],
-        pads: [[293.66, 392, 523.25], [329.63, 440, 587.33]]
-      }
-    };
-
-    const theme = themes[currentRoomType] || themes.Event;
-    const isBattleTheme = ['Combat', 'Elite', 'Boss'].includes(currentRoomType);
-    const roomPhraseStyle = {
-      Combat: { lift: 3, shadow: -2, restEvery: 4, accentWave: 'square', accentGain: 0.06 },
-      Elite: { lift: 4, shadow: -3, restEvery: 4, accentWave: 'triangle', accentGain: 0.065 },
-      Boss: { lift: 5, shadow: -5, restEvery: 0, accentWave: 'sawtooth', accentGain: 0.075 },
-      Event: { lift: 7, shadow: 2, restEvery: 3, accentWave: 'sine', accentGain: 0.045 },
-      Rest: { lift: 5, shadow: 0, restEvery: 4, accentWave: 'sine', accentGain: 0.04 },
-      Shop: { lift: 7, shadow: 2, restEvery: 3, accentWave: 'triangle', accentGain: 0.05 },
-      Victory: { lift: 7, shadow: 4, restEvery: 0, accentWave: 'triangle', accentGain: 0.055 },
-      'Game Over': { lift: -2, shadow: -5, restEvery: 5, accentWave: 'sine', accentGain: 0.03 },
-      Transition: { lift: 5, shadow: 0, restEvery: 4, accentWave: 'triangle', accentGain: 0.04 }
-    }[currentRoomType] || { lift: 5, shadow: 0, restEvery: 4, accentWave: 'triangle', accentGain: 0.04 };
-    const transpose = (freq, semitones = 0) => (!freq ? 0 : Number((freq * Math.pow(2, semitones / 12)).toFixed(2)));
-    const extendBars = (bars, options = {}) => {
-      const { lift = 0, shadow = 0, restEvery = 0 } = options;
-      const lifted = bars.map((bar, barIndex) => bar.map((freq, noteIndex) => {
-        if (!freq) return 0;
-        if (restEvery && noteIndex % restEvery === restEvery - 1) return 0;
-        const semitoneShift = noteIndex % 2 === 0 ? lift : Math.max(0, lift - 2);
-        return transpose(freq, semitoneShift + (barIndex % 2 === 0 ? 0 : 12));
-      }));
-      const shadowed = bars.map((bar, barIndex) => bar.map((freq, noteIndex) => {
-        if (!freq) return 0;
-        if (noteIndex === 0 && barIndex % 2 === 1) return 0;
-        return transpose(freq, noteIndex % 3 === 0 ? shadow : shadow + 2);
-      }));
-      return [...bars, ...lifted, ...shadowed].slice(0, Math.max(4, bars.length * 2));
-    };
-    const bassBars = extendBars(theme.bassBars, { lift: Math.max(0, roomPhraseStyle.lift - 5), shadow: -5, restEvery: 0 });
-    const leadBars = extendBars(theme.leadBars, roomPhraseStyle);
-    const pads = extendBars(theme.pads, { lift: Math.max(0, roomPhraseStyle.lift - 7), shadow: roomPhraseStyle.shadow }).map(bar => bar.filter(Boolean).slice(0, 3));
-    bgmBarRef.current = 0;
-    const playBar = () => {
-      const barIndex = bgmBarRef.current % bassBars.length;
-      const bassBar = bassBars[barIndex];
-      const leadBar = leadBars[barIndex % leadBars.length];
-      const pad = pads[barIndex % pads.length];
-      const barStart = ctx.currentTime + 0.03;
-      const bassPeak = Math.max(0.0001, bgmVolume * (theme.bassGain || 0.18));
-      const leadPeak = Math.max(0.0001, bgmVolume * (theme.leadGain || 0.13));
-      const padPeak = Math.max(0.0001, bgmVolume * (theme.padGain || 0.06));
-
-      bassBar.forEach((freq, index) => {
-        if (!freq) return;
-        const start = barStart + index * theme.step;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        osc.type = theme.bassWave || 'triangle';
-        osc.frequency.setValueAtTime(freq, start);
-        if (isBattleTheme && index % 2 === 0) {
-          osc.detune.setValueAtTime(index % 4 === 0 ? -6 : 6, start);
-        }
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(theme.bassCutoff || (isBattleTheme ? 520 : 780), start);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(bassPeak, start + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + theme.step * 1.75);
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + theme.step * 1.8);
-        bgmNodesRef.current.push(osc, gain, filter);
-      });
-
-      leadBar.forEach((freq, index) => {
-        if (!freq) return;
-        const start = barStart + index * theme.step + theme.step * 0.35;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = theme.wave;
-        osc.frequency.setValueAtTime(freq, start);
-        if (!isBattleTheme && index % 3 === 0) {
-          osc.detune.setValueAtTime(5, start);
-        }
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(leadPeak, start + 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + theme.step * 1.2);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + theme.step * 1.25);
-        bgmNodesRef.current.push(osc, gain);
-      });
-
-      pad.forEach((freq, index) => {
-        if (!freq) return;
-        const start = barStart + index * theme.step * 2;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        osc.type = theme.padWave || 'sine';
-        osc.frequency.setValueAtTime(freq, start);
-        if (!isBattleTheme) {
-          osc.detune.setValueAtTime(index % 2 === 0 ? 8 : -8, start);
-        }
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(Math.max(220, (theme.bassCutoff || (isBattleTheme ? 520 : 780)) + (isBattleTheme ? -80 : 120)), start);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(padPeak, start + 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + theme.step * 3.6);
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + theme.step * 3.7);
-        bgmNodesRef.current.push(osc, gain, filter);
-      });
-
-      leadBar.forEach((freq, index) => {
-        if (!freq || index % 2 === 0) return;
-        const start = barStart + index * theme.step + theme.step * 0.12;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        osc.type = roomPhraseStyle.accentWave;
-        osc.frequency.setValueAtTime(transpose(freq, isBattleTheme ? -12 : 12), start);
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(isBattleTheme ? 1400 : 2200, start);
-        gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, bgmVolume * roomPhraseStyle.accentGain), start + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + theme.step * 0.9);
-        osc.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(start);
-        osc.stop(start + theme.step);
-        bgmNodesRef.current.push(osc, gain, filter);
-      });
-
-      bgmBarRef.current += 1;
-    };
-
-    playBar();
-    bgmLoopRef.current = window.setInterval(playBar, theme.step * 8 * 1000);
-
-    return () => {
-      if (bgmLoopRef.current) {
-        window.clearInterval(bgmLoopRef.current);
-        bgmLoopRef.current = null;
-      }
-    };
-  }, [currentRoomType, getAudioContext, metaProgress.settings]);
+  useEffect(() => () => {
+    const bgmAudio = bgmAudioRef.current;
+    if (!bgmAudio) return;
+    bgmAudio.pause();
+    bgmAudio.removeAttribute('src');
+    bgmAudio.load();
+  }, []);
 
   const showAchievementToast = useCallback((achievement) => {
     const toast = { id: `${achievement.id}-${Date.now()}`, achievement };
@@ -2863,8 +2958,7 @@ function App() {
     }, 4200);
   }, []);
 
-  const handleLangChange = (e) => {
-      const newLang = e.target.value;
+  const changeLanguage = (newLang) => {
       if (gameState.character) {
           if (window.confirm(UI.lang_warning[newLang])) {
               setLang(newLang);
@@ -2876,18 +2970,30 @@ function App() {
       }
   };
 
-  const addRewardEffect = useCallback((type, text) => {
+  const handleLangChange = (e) => {
+    changeLanguage(e.target.value);
+  };
+
+  const cycleLanguage = () => {
+    const languages = ['en', 'ja', 'zh'];
+    const currentIndex = languages.indexOf(lang);
+    const nextLang = languages[(currentIndex + 1) % languages.length];
+    changeLanguage(nextLang);
+  };
+
+  const addRewardEffect = useCallback((type, text, options = {}) => {
     const newEffect = {
       id: Date.now() + Math.random(),
       text,
       type,
+      delay: options.delay || 0,
       x: `calc(50% + ${Math.random() * 80 - 40}px)`,
       y: `calc(40% + ${Math.random() * 60 - 30}px)`
     };
     setRewardEffects(prev => [...prev, newEffect]);
     setTimeout(() => {
       setRewardEffects(prev => prev.filter(e => e.id !== newEffect.id));
-    }, 2000);
+    }, 2000 + newEffect.delay);
   }, []);
 
   const recordMetaProgress = useCallback((statChanges = {}) => {
@@ -2949,6 +3055,7 @@ function App() {
         
         const newState = {
             ...gameState,
+            hp: gameState.maxHp,
             act: nextAct,
             runContent: content,
             route: newRoute
@@ -2976,8 +3083,8 @@ function App() {
              (result.relics !== undefined && result.relics.length > gameState.relics.length) || 
              (result.deck !== undefined && result.deck.length > gameState.deck.length)) setEffect('gain');
     
-    if (result.gold !== undefined && result.gold > gameState.gold) { addRewardEffect('gold', `+${result.gold - gameState.gold}`); playSound('coin'); }
-    if (result.gold !== undefined && result.gold < gameState.gold) addRewardEffect('gold', `${result.gold - gameState.gold}`);
+    if (result.gold !== undefined && result.gold > gameState.gold) { addRewardEffect('gold', `+${result.gold - gameState.gold} Gold`); playSound('coin'); }
+    if (result.gold !== undefined && result.gold < gameState.gold) addRewardEffect('gold', `${result.gold - gameState.gold} Gold`);
     if (result.relics !== undefined && result.relics.length > gameState.relics.length) addRewardEffect('relic', '+ Relic');
     if (result.deck !== undefined && result.deck.length > gameState.deck.length) addRewardEffect('card', '+ Card');
 
@@ -3025,7 +3132,15 @@ function App() {
         drawPile: [...newState.deck].sort(() => Math.random() - 0.5),
         discardPile: [], 
         hand: [],
-        cardsPlayed: 0
+        cardsPlayed: 0,
+        turnCardsPlayed: 0,
+        activePowers: {
+          demonForm: 0,
+          noxiousFumes: 0,
+          echoForm: 0,
+          blockEachTurn: 0,
+          drawEachTurn: 0
+        }
       };
 
       if (newState.relics.includes('Vajra')) newState.combat.playerStrength += 1;
@@ -3075,7 +3190,13 @@ function App() {
     setHoveredCardIndex(null);
 
     let s = { ...gameState, deck: [...gameState.deck], relics: [...gameState.relics] };
-    let c = { ...s.combat, hand: [...s.combat.hand], drawPile: [...s.combat.drawPile], discardPile: [...s.combat.discardPile] };
+    let c = {
+      ...s.combat,
+      hand: [...s.combat.hand],
+      drawPile: [...s.combat.drawPile],
+      discardPile: [...s.combat.discardPile],
+      activePowers: { ...(s.combat.activePowers || {}) }
+    };
     s.combat = c;
     let enemyData = s.runContent.allEnemies.find(e => e.id === c.enemyId);
 
@@ -3084,10 +3205,28 @@ function App() {
     const prePlayerHp = s.hp;
 
     // Player Phase
-    executeCard(cardName, s, c);
+    const penNibTriggers = s.relics.includes('Pen Nib') && (((c.cardsPlayed || 0) + 1) % 3 === 0);
+    const damageMultiplier = penNibTriggers ? 2 : 1;
+    c.cardsPlayed = (c.cardsPlayed || 0) + 1;
+    const cardDefinition = getCardDefinition(cardName);
+    const isPowerCard = cardDefinition?.type === 'Power';
+    const shouldEcho = (c.activePowers.echoForm || 0) > 0 && (c.turnCardsPlayed || 0) === 0;
+    c.turnCardsPlayed = (c.turnCardsPlayed || 0) + 1;
+
+    if (s.relics.includes('Cracked Core')) c.playerBlock += 2;
+    executeCard(cardName, s, c, {
+      damageMultiplier,
+      onDamage: (amount, hitIndex) => addRewardEffect('damage', `-${amount} HP`, { delay: hitIndex * 120 })
+    });
+    if (shouldEcho) {
+      executeCard(cardName, s, c, {
+        damageMultiplier,
+        onDamage: (amount, hitIndex) => addRewardEffect('damage', `-${amount} HP`, { delay: 180 + hitIndex * 120 })
+      });
+    }
     playSound('attack');
     const [playedCard] = c.hand.splice(cardIndex, 1);
-    if (playedCard) {
+    if (playedCard && !isPowerCard) {
       c.discardPile.push(playedCard);
     }
     c.hand.forEach(h => { c.discardPile.push(h); });
@@ -3109,7 +3248,6 @@ function App() {
     setGameState({...s}); 
     if (dealtDamage) {
         setEnemyAnim('hurt');
-        addRewardEffect('damage', `-${preEnemyHp - c.enemyHp}`);
     }
     
     await new Promise(r => setTimeout(r, 400));
@@ -3123,7 +3261,7 @@ function App() {
       if (s.relics.includes('Meat on the Bone') && s.hp <= s.maxHp / 2) { s.hp = Math.min(s.maxHp, s.hp + 12); addRewardEffect('heal', '+12 HP (Relic)'); }
       s.combat = null;
       setGameState({...s});
-      setCurrentNode(getRewardNode(c.enemyId));
+      setCurrentNode(getRewardNode(enemyData));
       recordMetaProgress({
         totalCombatWins: 1,
         totalEnemiesDefeated: 1,
@@ -3180,18 +3318,41 @@ function App() {
     }
 
     // Upkeep Phase
-    if (s.relics.includes('Orichalcum') && c.playerBlock === 0) { c.playerBlock += 6; addRewardEffect('heal', '+6 Block'); playSound('block'); }
+    const endedTurnWithoutBlock = c.playerBlock === 0;
     c.playerBlock = 0;
     if (s.relics.includes('Thread and Needle')) { c.playerBlock += 4; playSound('block'); }
+    if (endedTurnWithoutBlock && s.relics.includes('Orichalcum')) { c.playerBlock += 6; addRewardEffect('heal', '+6 Block'); playSound('block'); }
+    if (c.activePowers.demonForm > 0) c.playerStrength += c.activePowers.demonForm;
+    if (c.activePowers.noxiousFumes > 0) applyDamageToEnemy(c.activePowers.noxiousFumes, c);
+    if (c.activePowers.blockEachTurn > 0) { c.playerBlock += c.activePowers.blockEachTurn; playSound('block'); }
     
     if (c.enemyVuln > 0) c.enemyVuln--;
     if (c.enemyWeak > 0) c.enemyWeak--;
     if (c.playerVuln > 0) c.playerVuln--;
     c.turn++;
+    c.turnCardsPlayed = 0;
+
+    if (c.enemyHp <= 0) {
+      if (s.relics.includes('Burning Blood')) { s.hp = Math.min(s.maxHp, s.hp + 6); addRewardEffect('heal', '+6 HP (Relic)'); }
+      if (s.relics.includes('Meat on the Bone') && s.hp <= s.maxHp / 2) { s.hp = Math.min(s.maxHp, s.hp + 12); addRewardEffect('heal', '+12 HP (Relic)'); }
+      s.combat = null;
+      setGameState({...s});
+      setCurrentNode(getRewardNode(enemyData));
+      recordMetaProgress({
+        totalCombatWins: 1,
+        totalEnemiesDefeated: 1,
+        totalEliteWins: enemyData?.tier === 'elite' ? 1 : 0,
+        totalCardsPlayed: 1,
+        lowHpCombatSurvived: s.hp <= 10 ? 1 : 0,
+        highestGold: s.gold
+      });
+      setIsCombatResolving(false);
+      return;
+    }
 
     // Prepare Next Turn
     c.intent = enemyData.getAction(c.turn, c);
-    drawCards(c, 3); 
+    drawCards(c, 3 + (c.activePowers.drawEachTurn || 0)); 
 
     setGameState({...s});
     recordMetaProgress({ totalCardsPlayed: 1, highestGold: s.gold });
@@ -3199,19 +3360,19 @@ function App() {
   };
 
   const renderRewardIcon = (type) => {
-     if(type==='gold') return <Coins className="w-6 h-6"/>;
-     if(type==='relic') return <Sparkles className="w-6 h-6"/>;
-     if(type==='card') return <ScrollText className="w-6 h-6"/>;
-     if(type==='heal') return <Heart className="w-6 h-6"/>;
-     if(type==='damage') return <Sword className="w-6 h-6"/>;
+     if(type==='gold') return <Coins className="w-6 h-6 text-amber-300"/>;
+     if(type==='relic') return <RelicBadgeIcon className="w-6 h-6 text-violet-300"/>;
+     if(type==='card') return <CardIcon className="w-6 h-6 text-cyan-300"/>;
+     if(type==='heal') return <Heart className="w-6 h-6 text-green-300"/>;
+     if(type==='damage') return <AttackIcon className="w-6 h-6 text-red-400"/>;
      return null;
   };
 
   const renderAchievementIcon = (iconKey, className = "w-6 h-6") => {
-    if (iconKey === 'sword') return <Sword className={className} />;
+    if (iconKey === 'sword') return <AttackIcon className={className} />;
     if (iconKey === 'coins') return <Coins className={className} />;
-    if (iconKey === 'sparkles') return <Sparkles className={className} />;
-    if (iconKey === 'scroll') return <ScrollText className={className} />;
+    if (iconKey === 'sparkles') return <RelicBadgeIcon className={className} />;
+    if (iconKey === 'scroll') return <CardIcon className={className} />;
     if (iconKey === 'map') return <MapIcon className={className} />;
     if (iconKey === 'skull') return <Skull className={className} />;
     if (iconKey === 'ghost') return <Ghost className={className} />;
@@ -3250,19 +3411,70 @@ function App() {
     refreshSlotSummaries();
   };
 
+  const toggleMute = () => {
+    setMetaProgress(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        isMuted: !prev.settings.isMuted
+      }
+    }));
+  };
+
+  const returnToTitle = useCallback(() => {
+    setGameState(prev => ({ ...prev, character: null, characterKey: null, combat: null }));
+    setCurrentNode(getNeowNode());
+    setHoveredInfo(null);
+    setEffect(null);
+    setIsMazeMoving(false);
+    setTransitionMode('straight');
+    setIsCombatResolving(false);
+    setPlayedCardIndex(null);
+    setHoveredCardIndex(null);
+    setRewardEffects([]);
+    setAchievementToasts([]);
+    setIsInGameMenuOpen(false);
+    setInGameMenuTab('options');
+    setTitleView('heroes');
+  }, []);
+
+  if (!cardsReady) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-slate-200">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-4">
+          <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          <span className="font-bold">Loading card data...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!gameState.character) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 md:p-6 text-slate-200 selection:bg-red-900 selection:text-white relative overflow-x-hidden overflow-y-auto">
         <SpireBackground roomType="Event" isMoving={false} lightClass="from-slate-800/40 via-slate-950/20 to-transparent" transitionMode="straight" />
         
         {/* Language Switcher */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-900/80 p-2 rounded border border-slate-700">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            onClick={cycleLanguage}
+            title={`Language: ${lang.toUpperCase()}`}
+            className="h-10 px-3 rounded border border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-400 transition-colors flex items-center gap-2 text-xs font-bold"
+          >
             <Globe className="w-4 h-4 text-slate-400" />
-            <select value={lang} onChange={handleLangChange} className="bg-transparent text-sm font-bold outline-none cursor-pointer">
-                <option value="en">English</option>
-                <option value="ja">Japanese</option>
-                <option value="zh">Chinese</option>
-            </select>
+            <span>{lang.toUpperCase()}</span>
+          </button>
+          <button
+            onClick={toggleMute}
+            title={metaProgress.settings.isMuted ? UI.unmute[lang] : UI.mute[lang]}
+            className={`h-10 w-10 rounded border transition-colors flex items-center justify-center ${
+              metaProgress.settings.isMuted
+                ? 'bg-red-950/60 text-red-200 border-red-500/40'
+                : 'bg-slate-900/80 text-slate-200 border-slate-700 hover:border-slate-400'
+            }`}
+          >
+            {metaProgress.settings.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
         </div>
 
         <div className="relative z-20 w-full flex flex-col items-center">
@@ -3331,7 +3543,7 @@ function App() {
                       <h2 className={`text-xl font-bold mb-2 ${isUnlocked ? char.color : 'text-slate-500'}`}>{char.name[lang]}</h2>
                       <div className="w-full h-px bg-slate-800 mb-3"></div>
                       <p className="text-sm text-slate-400 mb-1 flex justify-between px-2"><span>{UI.health[lang]}:</span> <span className="text-slate-200 font-bold">{char.hp}</span></p>
-                      <p className="text-sm text-slate-400 mb-2 flex justify-between px-2"><span>{UI.relics[lang]}:</span> <span className="text-slate-200 font-bold text-right ml-2">{getTranslatedRelic(char.relics[0], lang).name}</span></p>
+                      <p className="text-sm text-slate-400 mb-2 flex justify-between px-2"><span>{UI.relics[lang]}:</span> <span className="inline-flex items-center gap-1 text-slate-200 font-bold text-right ml-2"><RelicIcon relicName={char.relics[0]} className="w-4 h-4 shrink-0" />{getTranslatedRelic(char.relics[0], lang).name}</span></p>
                       <div className={`text-xs font-bold uppercase tracking-widest ${isUnlocked ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {isUnlocked ? UI.unlocked[lang] : UI.locked[lang]}
                       </div>
@@ -3580,7 +3792,7 @@ function App() {
                             return (
                               <div key={relic} className={`rounded-xl border p-3 ${isUnlocked ? 'bg-slate-800 border-slate-600 text-slate-200' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
                                 <div className="flex items-center justify-between gap-3">
-                                  <span className="font-bold">{translatedRelic.name}</span>
+                                  <span className="inline-flex items-center gap-2 font-bold"><RelicIcon relicName={relic} className="w-4 h-4 shrink-0 text-amber-300" />{translatedRelic.name}</span>
                                   <span className={`text-[10px] uppercase tracking-widest ${isUnlocked ? 'text-emerald-400' : 'text-amber-400'}`}>{isUnlocked ? UI.unlocked[lang] : UI.locked[lang]}</span>
                                 </div>
                                 <div className="text-sm mt-1">{translatedRelic.desc}</div>
@@ -3593,31 +3805,54 @@ function App() {
 
                       <div>
                         <div className="text-xs uppercase tracking-widest text-slate-500 mb-2">{UI.class_cards[lang]}</div>
-                        <div className="overflow-x-auto rounded-xl border border-slate-700">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-950/90 text-slate-400 uppercase tracking-widest text-xs">
-                              <tr>
-                                <th className="px-4 py-3">{UI.deck[lang]}</th>
-                                <th className="px-4 py-3">{UI.status[lang]}</th>
-                                <th className="px-4 py-3">{UI.effect[lang]}</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {cards.map((card, index) => {
-                                const translatedCard = getTranslatedCard(card, lang);
-                                const isUnlocked = metaProgress.unlockedCards.includes(card);
-                                return (
-                                  <tr key={card} className={index % 2 === 0 ? 'bg-slate-900' : 'bg-slate-950/90'}>
-                                    <td className={`px-4 py-3 font-bold ${isUnlocked ? 'text-slate-100' : 'text-slate-500'}`}>{translatedCard.name}</td>
-                                    <td className="px-4 py-3">
-                                      <span className={`text-[10px] uppercase tracking-widest ${isUnlocked ? 'text-emerald-400' : 'text-amber-400'}`}>{isUnlocked ? UI.unlocked[lang] : UI.locked[lang]}</span>
-                                    </td>
-                                    <td className={`px-4 py-3 ${isUnlocked ? 'text-slate-300' : 'text-slate-500'}`}>{translatedCard.desc}</td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                        <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 sm:p-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                            {cards.map((card) => {
+                              const translatedCard = getTranslatedCard(card, lang);
+                              const isUnlocked = metaProgress.unlockedCards.includes(card);
+                              const cardType = translatedCard.type || 'Skill';
+                              const rarity = translatedCard.rarity || 'Common';
+                              const typeMeta = CARD_TYPE_META[cardType] || CARD_TYPE_META.Skill;
+                              const rarityMeta = CARD_RARITY_META[rarity] || CARD_RARITY_META.Common;
+                              const descriptionLength = (translatedCard.desc || '').length;
+                              const bgClass = cardType === 'Attack'
+                                ? 'bg-gradient-to-b from-red-950/90 via-slate-900/95 to-slate-950/95'
+                                : cardType === 'Power'
+                                  ? 'bg-gradient-to-b from-violet-950/90 via-slate-900/95 to-slate-950/95'
+                                  : cardType === 'Status'
+                                    ? 'bg-gradient-to-b from-slate-800/90 via-slate-900/95 to-slate-950/95'
+                                    : 'bg-gradient-to-b from-sky-950/90 via-slate-900/95 to-slate-950/95';
+                              const descClass = descriptionLength > 90
+                                ? 'text-[9px] leading-[1.08]'
+                                : descriptionLength > 60
+                                  ? 'text-[10px] leading-[1.12]'
+                                  : 'text-[11px] leading-snug';
+                              return (
+                                <div
+                                  key={card}
+                                  className={`relative min-h-[17rem] rounded-xl border-2 flex flex-col p-3 overflow-hidden ${bgClass} ${rarityMeta.glowClass} ${rarityMeta.borderClass || 'border-slate-700/70'} ${isUnlocked ? 'text-slate-100' : 'opacity-55 saturate-50 text-slate-500 border-slate-800 shadow-none'}`}
+                                >
+                                  <div className="text-center font-bold text-sm text-slate-100 mb-2 w-full border-b border-slate-700/50 pb-2">
+                                    {translatedCard.name}
+                                  </div>
+                                  <div className={`flex-1 flex items-center justify-center text-center text-slate-300 px-1 ${isUnlocked ? '' : 'text-slate-500'} ${descClass}`}>
+                                    {renderCardDescription(translatedCard.desc)}
+                                  </div>
+                                  <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between gap-2">
+                                    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.2em] ${typeMeta.badgeClass}`}>
+                                      {typeMeta.label}
+                                    </span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-[0.18em] ${rarityMeta.badgeClass}`}>
+                                      {rarityMeta.label}
+                                    </span>
+                                  </div>
+                                  <div className={`mt-2 text-[10px] font-bold uppercase tracking-[0.18em] ${isUnlocked ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {isUnlocked ? UI.unlocked[lang] : UI.locked[lang]}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                         <div className="text-xs text-slate-500 mt-2">{UI.unlocked_count[lang]}: {unlockedCards.length} / {cards.length}</div>
                       </div>
@@ -3684,15 +3919,161 @@ function App() {
         ))}
       </div>
       
-      {/* Language Switcher overlay for active game */}
-      <div className="absolute top-3 right-3 md:top-4 md:right-4 z-[300] flex items-center gap-2 bg-slate-900/80 p-2 rounded border border-slate-700">
-          <Globe className="w-4 h-4 text-slate-400" />
-          <select value={lang} onChange={handleLangChange} className="bg-transparent text-sm font-bold outline-none cursor-pointer">
-              <option value="en">English</option>
-              <option value="ja">Japanese</option>
-              <option value="zh">Chinese</option>
-          </select>
+      {/* Top-right controls for active game */}
+      <div className="absolute top-3 right-3 md:top-4 md:right-4 z-[300] flex items-center gap-2">
+          <button
+            onClick={cycleLanguage}
+            title={`Language: ${lang.toUpperCase()}`}
+            className="h-10 px-3 rounded border border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-400 transition-colors flex items-center gap-2 text-xs font-bold"
+          >
+            <Globe className="w-4 h-4 text-slate-400" />
+            <span>{lang.toUpperCase()}</span>
+          </button>
+          <button
+            onClick={toggleMute}
+            title={metaProgress.settings.isMuted ? UI.unmute[lang] : UI.mute[lang]}
+            className={`h-10 w-10 rounded border transition-colors flex items-center justify-center ${
+              metaProgress.settings.isMuted
+                ? 'bg-red-950/60 text-red-200 border-red-500/40'
+                : 'bg-slate-900/80 text-slate-200 border-slate-700 hover:border-slate-400'
+            }`}
+          >
+            {metaProgress.settings.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => {
+              setInGameMenuTab('options');
+              setIsInGameMenuOpen(true);
+            }}
+            title={UI.menu[lang]}
+            className="h-10 w-10 rounded border bg-slate-900/80 text-slate-200 border-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
+          >
+            <MenuIcon className="w-4 h-4" />
+          </button>
       </div>
+
+      {isInGameMenuOpen && (
+        <div className="fixed inset-0 z-[400] bg-black/65 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/95 shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-5 py-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.25em] text-slate-500 mb-1">{UI.menu[lang]}</div>
+                <h2 className="text-2xl font-bold text-slate-100">
+                  {inGameMenuTab === 'achievements' ? UI.achievements[lang] : UI.options[lang]}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsInGameMenuOpen(false)}
+                className="px-3 py-1 rounded text-sm font-bold border bg-slate-800 text-slate-200 border-slate-600 hover:border-slate-400 transition-colors"
+              >
+                {UI.close[lang]}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 px-5 pt-4">
+              {[
+                ['options', UI.options[lang]],
+                ['achievements', UI.achievements[lang]]
+              ].map(([tabId, label]) => (
+                <button
+                  key={tabId}
+                  onClick={() => setInGameMenuTab(tabId)}
+                  className={`px-4 py-2 rounded-full border text-sm font-bold transition-all ${
+                    inGameMenuTab === tabId
+                      ? 'bg-slate-200 text-slate-950 border-slate-200'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-400 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-5">
+              {inGameMenuTab === 'achievements' ? (
+                <div className="grid gap-4">
+                  {ACHIEVEMENT_DEFS.map((achievement) => {
+                    const [current, target] = achievement.progress(metaProgress.stats);
+                    const ratio = target === 0 ? 1 : current / target;
+                    const isComplete = metaProgress.achievements[achievement.id]?.completed;
+                    return (
+                      <div key={achievement.id} className={`rounded-2xl border p-5 ${isComplete ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-slate-950/80 border-slate-700'}`}>
+                        <div className="flex items-center justify-between gap-4 mb-3">
+                          <div className="flex items-start gap-3">
+                            <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${isComplete ? 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                              {renderAchievementIcon(achievement.icon)}
+                            </div>
+                            <div>
+                              <h3 className={`text-xl font-bold ${isComplete ? 'text-emerald-300' : 'text-slate-100'}`}>{achievement.title[lang]}</h3>
+                              <p className="text-sm text-slate-400">{achievement.desc[lang]}</p>
+                            </div>
+                          </div>
+                          <div className={`text-xs font-bold uppercase tracking-widest ${isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {isComplete ? UI.unlocked[lang] : UI.progress[lang]}
+                          </div>
+                        </div>
+                        <div className="h-3 rounded-full bg-slate-900 border border-slate-800 overflow-hidden mb-2">
+                          <div className={`h-full ${isComplete ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${Math.min(ratio * 100, 100)}%` }}></div>
+                        </div>
+                        <div className="text-xs text-slate-400">{UI.progress[lang]}: {current} / {target}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid lg:grid-cols-[1fr_auto] gap-5">
+                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-5">
+                    <h3 className="text-2xl font-bold text-slate-100 mb-1">{UI.audio[lang]}</h3>
+                    <p className="text-sm text-slate-400 mb-5">{UI.active_slot[lang]}: {activeSlot}</p>
+
+                    {[
+                      ['masterVolume', UI.master_volume[lang]],
+                      ['uiVolume', UI.ui_volume[lang]],
+                      ['combatVolume', UI.combat_volume[lang]],
+                      ['achievementVolume', UI.achievement_volume[lang]]
+                    ].map(([key, label]) => (
+                      <label key={key} className="block mb-5">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <span className="font-bold text-slate-200">{label}</span>
+                          <span className="text-sm text-slate-400">{metaProgress.settings[key]}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={metaProgress.settings[key]}
+                          onChange={(event) => setAudioSetting(key, Number(event.target.value))}
+                          className="w-full accent-emerald-400 cursor-pointer"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={toggleMute}
+                      className={`px-4 py-3 rounded-xl border font-bold transition-colors ${
+                        metaProgress.settings.isMuted
+                          ? 'bg-red-950/60 text-red-200 border-red-500/40'
+                          : 'bg-slate-800 text-slate-200 border-slate-600 hover:border-slate-400'
+                      }`}
+                    >
+                      {metaProgress.settings.isMuted ? UI.unmute[lang] : UI.mute[lang]}
+                    </button>
+                    <button
+                      onClick={returnToTitle}
+                      className="px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-950/40 text-amber-200 hover:bg-amber-900/50 transition-colors font-bold"
+                    >
+                      {UI.return_to_title[lang]}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* LEFT SIDEBAR - STATS & INVENTORY */}
       <div className="relative w-full md:w-80 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-700 p-4 md:p-6 flex flex-col gap-4 md:gap-6 shadow-2xl z-[150] max-h-[40vh] md:max-h-none overflow-y-auto">
@@ -3718,14 +4099,14 @@ function App() {
 
         <div className="flex-1 min-h-0">
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4" /> {UI.relics[lang]} ({gameState.relics.length})
+            <RelicBadgeIcon className="w-4 h-4" /> {UI.relics[lang]} ({gameState.relics.length})
           </h2>
           <div className="flex flex-wrap gap-2">
             {gameState.relics.map((relic, i) => {
               const tr = getTranslatedRelic(relic, lang);
               return (
-              <div key={i} onMouseEnter={() => setHoveredInfo({ title: tr.name, desc: tr.desc || COPY.fallback.unknownEffect[lang] })} onMouseLeave={() => setHoveredInfo(null)} className="bg-slate-800 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 cursor-help hover:bg-slate-700 hover:-translate-y-0.5 transition-all shadow-sm">
-                {tr.name}
+              <div key={i} onMouseEnter={() => setHoveredInfo({ title: tr.name, desc: tr.desc || COPY.fallback.unknownEffect[lang] })} onMouseLeave={() => setHoveredInfo(null)} className="bg-slate-800 text-xs px-2 py-1 rounded border border-slate-600 text-slate-300 cursor-help hover:bg-slate-700 hover:-translate-y-0.5 transition-all shadow-sm inline-flex items-center gap-1.5">
+                <RelicIcon relicName={relic} className="w-3.5 h-3.5 shrink-0 text-amber-300" />{tr.name}
               </div>
             )})}
           </div>
@@ -3733,7 +4114,7 @@ function App() {
 
         <div className="flex-1 min-h-0 max-h-40 md:max-h-48 overflow-y-auto pr-2 custom-scrollbar">
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <ScrollText className="w-4 h-4" /> {UI.deck[lang]} ({gameState.deck.length})
+            <CardIcon className="w-4 h-4" /> {UI.deck[lang]} ({gameState.deck.length})
           </h2>
           <div className="flex flex-col gap-1">
             {gameState.deck.map((card, i) => {
@@ -3759,7 +4140,7 @@ function App() {
               const isCurrent = floorNum === gameState.floor;
               
               let icon;
-              if (node.type === 'Combat') icon = <Sword className="w-3 h-3 text-[#d1b098]" />;
+              if (node.type === 'Combat') icon = <AttackIcon className="w-3 h-3 text-[#d1b098]" />;
               else if (node.type === 'Event') icon = <Sparkles className="w-3 h-3 text-[#8ca3c7]" />;
               else if (node.type === 'Shop') icon = <Coins className="w-3 h-3 text-[#c7b471]" />;
               else if (node.type === 'Elite') icon = <Skull className="w-3 h-3 text-[#b38bc7]" />;
@@ -3921,15 +4302,34 @@ function App() {
           <div className="fixed bottom-2 sm:bottom-3 md:bottom-6 left-2 right-20 sm:right-28 md:left-auto md:right-40 w-auto md:w-[34rem] flex justify-end items-end h-44 sm:h-52 md:h-64 z-[200] pointer-events-none" style={{ perspective: '1000px' }}>
             {gameState.combat.hand.map((card, idx) => {
                const tc = getTranslatedCard(card, lang);
-               const isAttack = tc.desc && (tc.desc.includes('damage') || tc.desc.includes('Dmg'));
+               const cardType = tc.type || 'Skill';
+               const rarity = tc.rarity || 'Common';
+               const typeMeta = CARD_TYPE_META[cardType] || CARD_TYPE_META.Skill;
+               const rarityMeta = CARD_RARITY_META[rarity] || CARD_RARITY_META.Common;
+               const descriptionLength = (tc.desc || '').length;
                
                const isPlaying = playedCardIndex === idx;
                const isHovered = hoveredCardIndex === idx && !isCombatResolving && !isPlaying;
                
-               const bgClass = isAttack ? 'bg-gradient-to-b from-red-950/90 to-slate-900/90' : 'bg-gradient-to-b from-blue-950/90 to-slate-900/90';
-               const borderClass = isHovered 
-                 ? (isAttack ? 'border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.6)]' : 'border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.6)]') 
-                 : (isAttack ? 'border-red-900/50' : 'border-blue-900/50');
+               const bgClass = cardType === 'Attack'
+                 ? 'bg-gradient-to-b from-red-950/90 via-slate-900/95 to-slate-950/95'
+                 : cardType === 'Power'
+                   ? 'bg-gradient-to-b from-violet-950/90 via-slate-900/95 to-slate-950/95'
+                   : cardType === 'Status'
+                     ? 'bg-gradient-to-b from-slate-800/90 via-slate-900/95 to-slate-950/95'
+                     : 'bg-gradient-to-b from-sky-950/90 via-slate-900/95 to-slate-950/95';
+               const borderClass = isHovered
+                 ? (cardType === 'Attack'
+                    ? 'border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.6)]'
+                    : cardType === 'Power'
+                      ? 'border-violet-400 shadow-[0_0_30px_rgba(167,139,250,0.55)]'
+                      : 'border-sky-400 shadow-[0_0_30px_rgba(56,189,248,0.5)]')
+                 : `border-slate-700/70 ${rarityMeta.glowClass} ${rarityMeta.borderClass}`;
+               const descClass = descriptionLength > 90
+                 ? 'text-[8px] sm:text-[9px] md:text-[11px] leading-[1.08]'
+                 : descriptionLength > 60
+                   ? 'text-[9px] sm:text-[10px] md:text-[12px] leading-[1.12]'
+                   : 'text-[10px] sm:text-[11px] md:text-sm leading-snug';
                
                const count = gameState.combat.hand.length;
                const cardsFromRight = count - 1 - idx;
@@ -3969,8 +4369,16 @@ function App() {
                      <div className="text-center font-bold text-[11px] sm:text-xs md:text-base text-slate-200 mb-1 sm:mb-2 w-full border-b border-slate-700/50 pb-1 sm:pb-2 drop-shadow-md relative z-10">
                        {tc.name}
                      </div>
-                     <div className="flex-1 flex items-center justify-center text-[10px] sm:text-[11px] md:text-sm text-slate-300 text-center leading-snug drop-shadow-md relative z-10">
-                       {renderTextWithIcons(tc.desc)}
+                     <div className={`flex-1 w-full flex items-center justify-center px-1 text-slate-300 text-center drop-shadow-md relative z-10 ${descClass}`}>
+                       {renderCardDescription(tc.desc)}
+                     </div>
+                     <div className="relative z-10 mt-1.5 w-full pt-1.5 border-t border-slate-700/50 flex items-center justify-between gap-2">
+                       <span className={`rounded-full border px-2 py-0.5 text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] ${typeMeta.badgeClass}`}>
+                         {typeMeta.label}
+                       </span>
+                       <span className={`text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase tracking-[0.18em] ${rarityMeta.badgeClass}`}>
+                         {rarityMeta.label}
+                       </span>
                      </div>
                      <div className={`absolute -top-6 -left-6 w-16 h-16 rounded-full blur-xl transition-all z-0 ${isHovered ? 'bg-white/10' : 'bg-white/5'}`}></div>
                    </button>
@@ -3984,8 +4392,8 @@ function App() {
         <div className="absolute inset-0 pointer-events-none z-[120] overflow-hidden">
           {rewardEffects.map(effect => (
             <div key={effect.id} className="absolute anim-float-up-fade flex items-center gap-2 text-2xl md:text-3xl font-extrabold drop-shadow-[0_4px_4px_rgba(0,0,0,0.9)] whitespace-nowrap"
-                 style={{ left: effect.x, top: effect.y, color: effect.color }}>
-               {renderRewardIcon(effect.type)} {effect.text}
+                 style={{ left: effect.x, top: effect.y, color: effect.color, animationDelay: `${effect.delay || 0}ms` }}>
+               {renderRewardIcon(effect.type)} {renderFloatingEffectText(effect.text, effect.type)}
             </div>
           ))}
         </div>

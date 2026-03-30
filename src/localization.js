@@ -52,6 +52,11 @@ export const UI = {
   ui_volume: { en: "UI Volume", ja: "UI音量", zh: "界面音量" },
   combat_volume: { en: "Combat Volume", ja: "戦闘音量", zh: "战斗音量" },
   achievement_volume: { en: "Achievement Volume", ja: "実績音量", zh: "成就音量" },
+  menu: { en: "Menu", ja: "メニュー", zh: "菜单" },
+  close: { en: "Close", ja: "閉じる", zh: "关闭" },
+  mute: { en: "Mute", ja: "ミュート", zh: "静音" },
+  unmute: { en: "Unmute", ja: "ミュート解除", zh: "取消静音" },
+  return_to_title: { en: "Return to Title", ja: "タイトルへ戻る", zh: "返回标题" },
   deck: { en: "Deck", ja: "デッキ", zh: "牌组" },
   spire_map: { en: "Spire Map", ja: "マップ", zh: "地图" },
   act: { en: "Act", ja: "幕", zh: "章节" },
@@ -122,6 +127,8 @@ const CARD_NAME_TRANSLATIONS = {
   "Blasphemy": { ja: "冒涜", zh: "亵渎" },
   "Sash Whip": { ja: "帯打ち", zh: "缎带鞭" },
   "Cut Through Fate": { ja: "運命を断つ", zh: "斩断命运" },
+  "Like Water": { ja: "水の如く", zh: "静水流深" },
+  "Foresight": { ja: "先見", zh: "预见" },
   "Soul Strike": { ja: "魂の一撃", zh: "灵魂打击" },
   "Bone Wall": { ja: "骨の壁", zh: "白骨之墙" },
   "Dark Bargain": { ja: "闇の取引", zh: "黑暗交易" },
@@ -132,6 +139,8 @@ const CARD_NAME_TRANSLATIONS = {
   "Corpse Explosion": { ja: "死体爆発", zh: "尸爆" },
   "Ritual Dagger": { ja: "儀式の短剣", zh: "仪式匕首" },
   "Spectral Shield": { ja: "幽体の盾", zh: "幽魂护盾" },
+  "Grave Pact": { ja: "墓所の契約", zh: "墓园契约" },
+  "Soul Furnace": { ja: "魂の炉", zh: "灵魂熔炉" },
   "Wound": { ja: "傷", zh: "创伤" }
 };
 const RELIC_NAME_TRANSLATIONS = {
@@ -162,7 +171,10 @@ export const translateGeneratedText = (text, lang) => {
     ? [
         [/^Deal (\d+) damage to ALL enemies each turn\.$/, '$1ダメージを毎ターンすべての敵に与える。'],
         [/^Deal (\d+) damage to ALL enemies\.$/, 'すべての敵に$1ダメージを与える。'],
+        [/^Deal (\d+) damage to ALL enemies 2 times\.$/, 'すべての敵に$1ダメージを2回与える。'],
         [/^Deal (\d+) damage randomly\.$/, 'ランダムな対象に$1ダメージを与える。'],
+        [/^Deal (\d+) damage 2 times\. Apply (\d+) Weak\.$/, '$1ダメージを2回与え、脱力を$2付与する。'],
+        [/^Deal (\d+) damage 3 times\. Apply (\d+) Vulnerable\.$/, '$1ダメージを3回与え、弱体を$2付与する。'],
         [/^Deal (\d+) damage \+ (\d+) for ALL 'Strike' cards\.$/, '$1ダメージを与える。さらにすべての「ストライク」カード1枚につき+$2ダメージ。'],
         [/^Deal (\d+) damage\. Apply (\d+) Vulnerable\.$/, '$1ダメージを与え、弱体を$2付与する。'],
         [/^Deal (\d+) damage\. Apply (\d+) Weak\.$/, '$1ダメージを与え、脱力を$2付与する。'],
@@ -176,6 +188,8 @@ export const translateGeneratedText = (text, lang) => {
         [/^Gain (\d+) Block\.$/, '$1ブロックを得る。'],
         [/^Gain (\d+) Strength\. Draw (\d+) card[s]?\.$/, '筋力を$1得て、カードを$2枚引く。'],
         [/^Gain (\d+) Strength\.$/, '筋力を$1得る。'],
+        [/^At the start of each turn, gain (\d+) Strength\.$/, '各ターン開始時に筋力を$1得る。'],
+        [/^The first card you play each turn is played twice\.$/, '各ターン最初にプレイしたカードを2回発動する。'],
         [/^Apply (\d+) Weak and Vulnerable\.$/, '脱力と弱体をそれぞれ$1付与する。'],
         [/^Apply (\d+) Vulnerable\.$/, '弱体を$1付与する。'],
         [/^Double your Strength\.$/, '自分の筋力を2倍にする。'],
@@ -190,6 +204,7 @@ export const translateGeneratedText = (text, lang) => {
         [/^Apply (\d+) Vulnerable to the enemy at the start of combat\.$/, '戦闘開始時、敵に弱体を$1付与する。'],
         [/^Every (\d+)(?:st|nd|rd|th) card you play deals double damage\.$/, '$1枚目ごとのカードが2倍ダメージを与える。'],
         [/^At the start of each turn, gain (\d+) Block\.$/, '各ターン開始時に$1ブロックを得る。'],
+        [/^Draw (\d+) additional card[s]? each turn\.$/, '各ターン追加でカードを$1枚引く。'],
         [/^Energy is conserved\.$/, 'エナジーを持ち越す。'],
         [/^You can now Dig for loot at Rest Sites\.$/, '休憩所で発掘して戦利品を得られる。'],
         [/^Start each combat with (\d+) Block and apply (\d+) Weak\.$/, '各戦闘開始時に$1ブロックを得て、脱力を$2付与する。'],
@@ -200,7 +215,10 @@ export const translateGeneratedText = (text, lang) => {
     : [
         [/^Deal (\d+) damage to ALL enemies each turn\.$/, '每回合对所有敌人造成$1点伤害。'],
         [/^Deal (\d+) damage to ALL enemies\.$/, '对所有敌人造成$1点伤害。'],
+        [/^Deal (\d+) damage to ALL enemies 2 times\.$/, '对所有敌人造成2次$1点伤害。'],
         [/^Deal (\d+) damage randomly\.$/, '随机造成$1点伤害。'],
+        [/^Deal (\d+) damage 2 times\. Apply (\d+) Weak\.$/, '造成2次$1点伤害。施加$2层虚弱。'],
+        [/^Deal (\d+) damage 3 times\. Apply (\d+) Vulnerable\.$/, '造成3次$1点伤害。施加$2层易伤。'],
         [/^Deal (\d+) damage \+ (\d+) for ALL 'Strike' cards\.$/, '造成$1点伤害。每有一张“打击”牌，额外造成$2点伤害。'],
         [/^Deal (\d+) damage\. Apply (\d+) Vulnerable\.$/, '造成$1点伤害。施加$2层易伤。'],
         [/^Deal (\d+) damage\. Apply (\d+) Weak\.$/, '造成$1点伤害。施加$2层虚弱。'],
@@ -214,6 +232,8 @@ export const translateGeneratedText = (text, lang) => {
         [/^Gain (\d+) Block\.$/, '获得$1点格挡。'],
         [/^Gain (\d+) Strength\. Draw (\d+) card[s]?\.$/, '获得$1点力量，并抽$2张牌。'],
         [/^Gain (\d+) Strength\.$/, '获得$1点力量。'],
+        [/^At the start of each turn, gain (\d+) Strength\.$/, '每回合开始时获得$1点力量。'],
+        [/^The first card you play each turn is played twice\.$/, '你每回合打出的第一张牌会额外结算一次。'],
         [/^Apply (\d+) Weak and Vulnerable\.$/, '施加$1层虚弱和易伤。'],
         [/^Apply (\d+) Vulnerable\.$/, '施加$1层易伤。'],
         [/^Double your Strength\.$/, '使你的力量翻倍。'],
@@ -228,6 +248,7 @@ export const translateGeneratedText = (text, lang) => {
         [/^Apply (\d+) Vulnerable to the enemy at the start of combat\.$/, '战斗开始时，对敌人施加$1层易伤。'],
         [/^Every (\d+)(?:st|nd|rd|th) card you play deals double damage\.$/, '你每打出第$1张牌时，其伤害翻倍。'],
         [/^At the start of each turn, gain (\d+) Block\.$/, '每回合开始时获得$1点格挡。'],
+        [/^Draw (\d+) additional card[s]? each turn\.$/, '每回合额外抽$1张牌。'],
         [/^Energy is conserved\.$/, '能量会被保留。'],
         [/^You can now Dig for loot at Rest Sites\.$/, '现在你可以在休息点挖掘宝物。'],
         [/^Start each combat with (\d+) Block and apply (\d+) Weak\.$/, '每场战斗开始时获得$1点格挡，并施加$2层虚弱。'],
@@ -451,7 +472,7 @@ export const ACHIEVEMENT_DEFS = [
     isComplete: (stats) => stats.highestActCleared >= 1,
     rewards: {
       characters: ['WATCHER'],
-      cards: ['Eruption', 'Vigilance', 'Flurry of Blows', 'Empty Fist', 'Halt', 'Bowling Bash', 'Tantrum', 'Wallop', 'Vault', 'Blasphemy', 'Sash Whip', 'Cut Through Fate'],
+      cards: ['Eruption', 'Vigilance', 'Flurry of Blows', 'Empty Fist', 'Halt', 'Bowling Bash', 'Tantrum', 'Wallop', 'Vault', 'Blasphemy', 'Sash Whip', 'Cut Through Fate', 'Like Water', 'Foresight'],
       relics: ['Pure Water', 'Shovel']
     }
   },
@@ -477,7 +498,7 @@ export const ACHIEVEMENT_DEFS = [
     isComplete: (stats) => stats.totalEnemiesDefeated >= 8,
     rewards: {
       characters: ['NECROBINDER'],
-      cards: ['Reap', 'Animate', 'Soul Strike', 'Bone Wall', 'Dark Bargain', 'Grave Dig', 'Summon Horde', 'Death Knell', 'Siphon', 'Corpse Explosion', 'Ritual Dagger', 'Spectral Shield'],
+      cards: ['Reap', 'Animate', 'Soul Strike', 'Bone Wall', 'Dark Bargain', 'Grave Dig', 'Summon Horde', 'Death Knell', 'Siphon', 'Corpse Explosion', 'Ritual Dagger', 'Spectral Shield', 'Grave Pact', 'Soul Furnace'],
       relics: ['Omen Forge', 'Meat on the Bone']
     }
   },
