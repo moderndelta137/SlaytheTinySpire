@@ -1,6 +1,57 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Heart, Coins, Map as MapIcon, Sword, Shield, Skull, Ghost, Sparkles, ScrollText, Library, Crosshair, Hexagon, Eye, Flame, Wind, Loader2, Globe, Menu as MenuIcon, Volume2, VolumeX } from 'lucide-react';
 import { UI as LOCALIZATION_UI, CHARACTER_TEXT, RELIC_POOL as LOCALIZATION_RELIC_POOL, RELIC_DICT as LOCALIZATION_RELIC_DICT, ENEMY_LIBRARY as LOCALIZATION_ENEMY_LIBRARY, ENEMY_MOVE_LABELS as LOCALIZATION_ENEMY_MOVE_LABELS, ACHIEVEMENT_DEFS as LOCALIZATION_ACHIEVEMENT_DEFS, COPY, localizeTemplate, localizeGeneratedName, translateGeneratedText } from './localization';
+import { createSeededRng } from './game/rng';
+import { generateProceduralRun } from './game/procedural';
+import {
+  adaptSoloRuntimeToSession,
+  applySoloRuntimeToSession,
+  createInitialSoloRuntimeState,
+  createLobbyPlayerState,
+  createPartyPlayerState,
+  createRunSeed,
+  deriveSeed,
+  LOCAL_PLAYER_ID,
+  projectSessionToSoloRuntime
+} from './game/schema';
+import { createLocalRoomId } from './game/localNetwork';
+import { createLocalSessionStore, isImmediateLocalNetworkAction } from './game/localSessionStore';
+import {
+  applyCombatParticipantResolutionToSession,
+  applyCombatEndedTurnToSession,
+  applyCombatDeathToSession,
+  applyCombatRewardTransitionToSession,
+  applyEnemyPhaseToSession
+} from './game/sessionCombat';
+import {
+  getCombatPreviewForCard as computeCombatPreview,
+  getIntentPlayerPreview as computeIntentPlayerPreview,
+  initializeCombatState,
+  resolveCombatEnemyPhase,
+  resolveCombatParticipantCardPlay
+} from './game/combat';
+import {
+  createActTransitionNode as createActTransitionRoomNode,
+  createDeathNode as createDeathRoomNode,
+  createEventNode,
+  createNeowNode as createNeowRoomNode,
+  createRewardNode as createRewardRoomNode,
+  createVictoryNode as createVictoryRoomNode,
+  generateMapRoute as buildMapRoute,
+  isChoiceAvailable,
+  resolveRoomChoice
+} from './game/rooms';
+import {
+  applyRoomVoteToSession,
+  finalizeRoomVoteInSession,
+  finalizeRewardState,
+  getEligibleRoomParticipants,
+  getRoomVoteResolution,
+  applyRoomResultToSession,
+  applyRoomTerminalStateToSession
+} from './game/sessionRooms';
+import { createLocalSessionBridge } from './game/sessionAdapter';
+import { CLIENT_ACTIONS, createClientAction } from './game/protocol';
 
 // --- GAME DATA & ENGINES ---
 
@@ -11,13 +62,14 @@ const glyphIcon = (viewBox, paths) => ({ className = "" }) => (
     {paths}
   </svg>
 );
-const AttackIcon = glyphIcon("0 0 24 24", <>)
+const AttackIcon = glyphIcon("0 0 24 24", <>
   <path d="m14.5 5 4.5 4.5" />
   <path d="M12.5 7 5 14.5V19h4.5L17 11.5 12.5 7Z" />
   <path d="m10 16 2 2" />
   <path d="m7 19-2 2" />
   <path d="m9 17-2-2" />
 </>);
+const CardIcon = glyphIcon("0 0 24 24", <>
   <path d="M5 7.5v11A1.5 1.5 0 0 0 6.5 20H16" />
   <path d="M11 9h3" />
   <path d="M11 13h3" />
@@ -335,6 +387,13 @@ const buildEnemyCodexCatalog = () => {
   );
 };
 const ENEMY_CODEX_CATALOG = buildEnemyCodexCatalog();
+const COMMON_STARTER_CARDS = ['Strike', 'Defend'];
+const STARTER_UNLOCKED_CHARACTERS = ['IRONCLAD'];
+const STARTER_UNLOCKED_CARDS = ['Strike', 'Defend', 'Bash'];
+const STARTER_UNLOCKED_RELICS = ['Burning Blood'];
+const META_STORAGE_PREFIX = 'slayTinySpireMeta_';
+const ACTIVE_SLOT_STORAGE_KEY = 'slayTinySpireActiveSlot';
+const SAVE_SLOT_IDS = ['1', '2', '3'];
 
 const CHARACTER_STARTER_RELIC = Object.fromEntries(
   Object.entries(CHARACTERS).map(([key, char]) => [key, char.relics[0]])
@@ -379,6 +438,9 @@ const createDefaultMetaProgress = () => ({
 });
 
 const getMetaStorageKey = (slotId) => `${META_STORAGE_PREFIX}${slotId}`;
+const DEBUG_PARTY_SIZE_STORAGE_KEY = 'slayTinySpireDebugPartySize';
+const LOCAL_ONLINE_SESSION_STORAGE_KEY = 'slayTinySpireLocalOnlineSession';
+const BUILD_MARKER = 'build 2026-03-31-03';
 
 const mergeUnique = (base, extra) => Array.from(new Set([...(base || []), ...(extra || [])]));
 
@@ -473,35 +535,51 @@ const getRelicRarity = (relicName) => {
   return 'Common';
 };
 
+const getRewardPicker = (rng) => {
+  if (rng?.pick) return (items) => rng.pick(items);
+  return getRandomItem;
+};
+
 const pickRewardCard = (state, tier = 'normal') => {
+  return pickRewardCardWithRng(state, null, tier);
+};
+
+const pickRewardCardWithRng = (state, rng, tier = 'normal') => {
   const pool = getStateRewardCardPool(state);
+  if (pool.length === 0) return null;
+  const pick = getRewardPicker(rng);
   const rareCards = pool.filter(card => getCardRarity(card) === 'Rare');
   const uncommonCards = pool.filter(card => getCardRarity(card) === 'Uncommon');
 
   if (tier === 'boss') {
-    return getRandomItem(rareCards.length > 0 ? rareCards : uncommonCards.length > 0 ? uncommonCards : pool);
+    return pick(rareCards.length > 0 ? rareCards : uncommonCards.length > 0 ? uncommonCards : pool);
   }
   if (tier === 'elite') {
     const upgradedPool = [...uncommonCards, ...rareCards];
-    return getRandomItem(upgradedPool.length > 0 ? upgradedPool : pool);
+    return pick(upgradedPool.length > 0 ? upgradedPool : pool);
   }
-  return getRandomItem(pool);
+  return pick(pool);
 };
 
 const pickRewardRelic = (state, tier = 'normal') => {
+  return pickRewardRelicWithRng(state, null, tier);
+};
+
+const pickRewardRelicWithRng = (state, rng, tier = 'normal') => {
   const pool = getStateRewardRelicPool(state);
   if (pool.length === 0) return null;
+  const pick = getRewardPicker(rng);
   const rareRelics = pool.filter(relic => getRelicRarity(relic) === 'Rare');
   const uncommonRelics = pool.filter(relic => getRelicRarity(relic) === 'Uncommon');
 
   if (tier === 'boss') {
-    return getRandomItem(rareRelics.length > 0 ? rareRelics : uncommonRelics.length > 0 ? uncommonRelics : pool);
+    return pick(rareRelics.length > 0 ? rareRelics : uncommonRelics.length > 0 ? uncommonRelics : pool);
   }
   if (tier === 'elite') {
     const upgradedPool = [...uncommonRelics, ...rareRelics];
-    return getRandomItem(upgradedPool.length > 0 ? upgradedPool : pool);
+    return pick(upgradedPool.length > 0 ? upgradedPool : pool);
   }
-  return getRandomItem(pool);
+  return pick(pool);
 };
 
 const appendRelicIfAvailable = (state, relicName) => {
@@ -509,7 +587,292 @@ const appendRelicIfAvailable = (state, relicName) => {
   return [...(state.relics || []), relicName];
 };
 
+const buildPlayerRewardPreview = ({ playerState, rewardNode, runSeed }) => {
+  if (!playerState || !rewardNode || rewardNode.type !== 'Reward') return null;
+  const rewardTier = rewardNode.meta?.rewardTier || 'normal';
+  const roomId = rewardNode.nodeId || 'reward';
+  const rewardRng = createSeededRng(deriveSeed(runSeed, 'reward-room', roomId, playerState.playerId));
+  const cardReward = pickRewardCardWithRng({
+    characterKey: playerState.characterKey,
+    character: CHARACTERS[playerState.characterKey],
+    unlockedCards: playerState.unlocks?.cards || [],
+    deck: playerState.deck || []
+  }, rewardRng, rewardTier);
+  const relicReward = rewardNode.choices?.some(choice => choice.id === 'take_relic')
+    ? pickRewardRelicWithRng({
+        unlockedRelics: playerState.unlocks?.relics || [],
+        relics: playerState.relics || []
+      }, rewardRng, rewardTier)
+    : null;
+
+  return {
+    playerId: playerState.playerId,
+    roomId,
+    rewardTier,
+    openedAt: Date.now(),
+    deadlineAt: Date.now() + 30000,
+    selected: false,
+    autoResolved: false,
+    options: {
+      gold: rewardNode.meta?.goldAmount || 25,
+      card: cardReward,
+      relic: relicReward,
+      heal: rewardNode.choices?.some(choice => choice.id === 'bandage') ? 15 : 0
+    },
+    choice: null
+  };
+};
+
+const buildSessionRewardState = ({ session, rewardNode, runSeed }) => {
+  const rewardEntries = Object.fromEntries(
+    (session.party?.order || [])
+      .map((playerId) => session.party?.players?.[playerId])
+      .filter(Boolean)
+      .map((playerState) => [
+        playerState.playerId,
+        buildPlayerRewardPreview({
+          playerState,
+          rewardNode,
+          runSeed
+        })
+      ])
+  );
+
+  return {
+    roomId: rewardNode.nodeId,
+    openedAt: Date.now(),
+    deadlineAt: Date.now() + 30000,
+    perPlayer: rewardEntries
+  };
+};
+
+const getRewardChoiceResult = (runtimeState, rewardPreview, choiceId) => {
+  if (!rewardPreview) return null;
+  if (choiceId === 'take_gold') {
+    return { gold: runtimeState.gold + (rewardPreview.options?.gold || 0) };
+  }
+  if (choiceId === 'take_card' && rewardPreview.options?.card) {
+    return { deck: [...runtimeState.deck, rewardPreview.options.card] };
+  }
+  if (choiceId === 'take_relic' && rewardPreview.options?.relic) {
+    return { relics: appendRelicIfAvailable(runtimeState, rewardPreview.options.relic) };
+  }
+  if (choiceId === 'bandage') {
+    return { hp: Math.min(runtimeState.maxHp, runtimeState.hp + (rewardPreview.options?.heal || 15)) };
+  }
+  return null;
+};
+
+const applyRewardChoiceToPlayerState = (playerState, rewardPreview, choiceId) => {
+  const rewardRuntime = {
+    hp: playerState.hp,
+    maxHp: playerState.maxHp,
+    gold: playerState.gold,
+    deck: [...(playerState.deck || [])],
+    relics: [...(playerState.relics || [])]
+  };
+  const result = getRewardChoiceResult(rewardRuntime, rewardPreview, choiceId);
+  if (!result) return playerState;
+  return {
+    ...playerState,
+    hp: result.hp !== undefined ? result.hp : playerState.hp,
+    gold: result.gold !== undefined ? result.gold : playerState.gold,
+    deck: result.deck !== undefined ? [...result.deck] : [...(playerState.deck || [])],
+    relics: result.relics !== undefined ? [...result.relics] : [...(playerState.relics || [])]
+  };
+};
+
+const getDeterministicRewardChoiceId = (rewardPreview, rewardNode) => {
+  const availableChoiceIds = (rewardNode?.choices || []).map((choice) => choice.id);
+  if (availableChoiceIds.includes('take_gold') && rewardPreview?.options?.gold) return 'take_gold';
+  if (availableChoiceIds.includes('take_relic') && rewardPreview?.options?.relic) return 'take_relic';
+  if (availableChoiceIds.includes('take_card') && rewardPreview?.options?.card) return 'take_card';
+  if (availableChoiceIds.includes('bandage')) return 'bandage';
+  return availableChoiceIds[0] || null;
+};
+
+const createSharedCombatPlayerState = (runtimeCombat = {}, overrides = {}) => ({
+  block: runtimeCombat.playerBlock || 0,
+  strength: runtimeCombat.playerStrength || 0,
+  vuln: runtimeCombat.playerVuln || 0,
+  weak: runtimeCombat.playerWeak || 0,
+  hand: [...(runtimeCombat.hand || [])],
+  drawPile: [...(runtimeCombat.drawPile || [])],
+  discardPile: [...(runtimeCombat.discardPile || [])],
+  cardsPlayedThisCombat: runtimeCombat.cardsPlayed || 0,
+  cardsPlayedThisTurn: runtimeCombat.turnCardsPlayed || 0,
+  activePowers: { ...(runtimeCombat.activePowers || {}) },
+  endedTurn: Boolean(runtimeCombat.playerEndedTurn),
+  ...overrides
+});
+
+const buildSessionCombatState = ({
+  session,
+  runtimeState,
+  currentNode,
+  enemyData,
+  preferExisting = false
+}) => {
+  if (!runtimeState?.combat?.active) return null;
+  if (preferExisting && session?.combat?.players) {
+    return {
+      ...(session.combat || {}),
+      enemy: {
+        ...(session.combat?.enemy || {}),
+        enemyId: runtimeState.combat.enemyId,
+        name: runtimeState.combat.enemyName,
+        spriteKey: runtimeState.combat.enemySprite,
+        hp: runtimeState.combat.enemyHp,
+        maxHp: runtimeState.combat.enemyMaxHp,
+        block: runtimeState.combat.enemyBlock || 0,
+        strength: runtimeState.combat.enemyStrength || 0,
+        vuln: runtimeState.combat.enemyVuln || 0,
+        weak: runtimeState.combat.enemyWeak || 0,
+        intent: runtimeState.combat.intent || session.combat?.enemy?.intent || null
+      }
+    };
+  }
+
+  const localCombatState = createSharedCombatPlayerState(runtimeState.combat);
+  const combatPlayers = {};
+  const isSameCombat =
+    session.combat?.enemy?.enemyId === runtimeState.combat.enemyId &&
+    session.combat?.turn === runtimeState.combat.turn;
+
+  (session.party?.order || []).forEach((playerId) => {
+    const partyPlayer = session.party?.players?.[playerId];
+    if (!partyPlayer) return;
+
+    if (playerId === LOCAL_PLAYER_ID) {
+      combatPlayers[playerId] = {
+        playerId,
+        hp: runtimeState.hp,
+        maxHp: runtimeState.maxHp,
+        alive: runtimeState.hp > 0,
+        downed: runtimeState.hp <= 0,
+        ...localCombatState
+      };
+      return;
+    }
+
+    const existingCombatPlayer = isSameCombat ? session.combat?.players?.[playerId] : null;
+    if (existingCombatPlayer) {
+      combatPlayers[playerId] = {
+        ...existingCombatPlayer,
+        playerId,
+        hp: partyPlayer.hp,
+        maxHp: partyPlayer.maxHp,
+        alive: partyPlayer.hp > 0,
+        downed: partyPlayer.hp <= 0
+      };
+      return;
+    }
+
+    const allyCharacter = CHARACTERS[partyPlayer.characterKey];
+    const allyRuntimeState = {
+      characterKey: partyPlayer.characterKey,
+      character: allyCharacter,
+      hp: partyPlayer.hp,
+      maxHp: partyPlayer.maxHp,
+      deck: [...(partyPlayer.deck || [])],
+      relics: [...(partyPlayer.relics || [])]
+    };
+    const allyCombat = initializeCombatState({
+      state: allyRuntimeState,
+      result: {
+        startCombat: runtimeState.combat.enemyId,
+        bonusBlock: 0,
+        reduceHp: Math.max(0, (enemyData?.hp || runtimeState.combat.enemyMaxHp || 0) - runtimeState.combat.enemyMaxHp),
+        bonusEnemyStr: runtimeState.combat.enemyStrength || 0,
+        applyVuln: runtimeState.combat.enemyVuln || 0
+      },
+      enemyData: enemyData || {
+        id: runtimeState.combat.enemyId,
+        hp: runtimeState.combat.enemyMaxHp,
+        names: runtimeState.combat.enemyName,
+        spriteKey: runtimeState.combat.enemySprite,
+        getAction: () => runtimeState.combat.intent
+      },
+      rng: createSeededRng(deriveSeed(runtimeState.runSeed, 'combat-init', runtimeState.combat.enemyId, currentNode?.nodeId || 'room', playerId))
+    });
+
+    combatPlayers[playerId] = {
+      playerId,
+      hp: partyPlayer.hp,
+      maxHp: partyPlayer.maxHp,
+      alive: partyPlayer.hp > 0,
+      downed: partyPlayer.hp <= 0,
+      ...createSharedCombatPlayerState(allyCombat, { endedTurn: false })
+    };
+  });
+
+  return {
+    combatId: `${runtimeState.runSeed || 'solo'}:${runtimeState.combat.enemyId}:${runtimeState.combat.turn}`,
+    turn: runtimeState.combat.turn || 1,
+    phase: runtimeState.combat.phase || 'player',
+    log: [...(session.combat?.log || [])],
+    enemy: {
+      enemyId: runtimeState.combat.enemyId,
+      name: runtimeState.combat.enemyName,
+      spriteKey: runtimeState.combat.enemySprite,
+      hp: runtimeState.combat.enemyHp,
+      maxHp: runtimeState.combat.enemyMaxHp,
+      block: runtimeState.combat.enemyBlock || 0,
+      strength: runtimeState.combat.enemyStrength || 0,
+      vuln: runtimeState.combat.enemyVuln || 0,
+      weak: runtimeState.combat.enemyWeak || 0,
+      intent: runtimeState.combat.intent || null
+    },
+    players: combatPlayers
+  };
+};
+
+const syncPartyPlayersFromCombatState = (partyPlayers = {}, combatPlayers = {}) => (
+  Object.fromEntries(
+    Object.entries(partyPlayers).map(([playerId, playerState]) => {
+      const combatPlayer = combatPlayers[playerId];
+      if (!combatPlayer) return [playerId, playerState];
+      return [
+        playerId,
+        {
+          ...playerState,
+          hp: combatPlayer.hp !== undefined ? combatPlayer.hp : playerState.hp,
+          maxHp: combatPlayer.maxHp !== undefined ? combatPlayer.maxHp : playerState.maxHp,
+          alive: combatPlayer.hp > 0,
+          downed: combatPlayer.hp <= 0,
+          combat: {
+            ...(playerState.combat || {}),
+            block: combatPlayer.block || 0,
+            strength: combatPlayer.strength || 0,
+            vuln: combatPlayer.vuln || 0,
+            weak: combatPlayer.weak || 0,
+            hand: [...(combatPlayer.hand || [])],
+            drawPile: [...(combatPlayer.drawPile || [])],
+            discardPile: [...(combatPlayer.discardPile || [])],
+            cardsPlayedThisCombat: combatPlayer.cardsPlayedThisCombat || 0,
+            cardsPlayedThisTurn: combatPlayer.cardsPlayedThisTurn || 0,
+            activePowers: { ...(combatPlayer.activePowers || {}) },
+            endedTurn: Boolean(combatPlayer.endedTurn)
+          }
+        }
+      ];
+    })
+  )
+);
+
+const areCombatParticipantsReadyForEnemyPhase = (order = [], partyPlayers = {}, combatPlayers = {}) => (
+  order.every((playerId) => {
+    const partyPlayer = partyPlayers[playerId];
+    const combatPlayer = combatPlayers[playerId];
+    if (!partyPlayer || partyPlayer.connected === false || partyPlayer.skipped || partyPlayer.hp <= 0) return true;
+    return Boolean(combatPlayer?.endedTurn);
+  })
+);
+
 const getTranslatedCard = (cardName, lang) => {
+  if (!cardName || typeof cardName !== 'string') {
+    return { name: COPY.fallback.unknownCard[lang] || COPY.fallback.unknownCard.en, desc: COPY.fallback.unknownCard[lang] || COPY.fallback.unknownCard.en };
+  }
   const isUpgraded = cardName.endsWith('+');
   const baseName = cardName.replace('+', '');
   const data = CARD_DICT[baseName];
@@ -531,312 +894,53 @@ const getTranslatedRelic = (relicName, lang) => {
   return { name: localizedName, desc: translateGeneratedText(data.desc[lang], lang) };
 };
 
-// --- COMBAT ENGINE ---
-
-const drawCards = (c, num) => {
-  const drawn = [...(c.hand || [])];
-  let drawnCount = 0;
-  while (drawnCount < num) {
-    if (c.drawPile.length === 0) {
-      if (c.discardPile.length === 0) break;
-      c.drawPile = [...c.discardPile].sort(() => Math.random() - 0.5);
-      c.discardPile = [];
-    }
-    drawn.push(c.drawPile.pop());
-    drawnCount += 1;
-  }
-  c.hand = drawn;
-};
-
-const getNumericEffect = (spec, key, fallback = 0) => {
-  const raw = spec?.[key];
-  if (raw === undefined || raw === '') return fallback;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const calcDamage = (base, combat, damageMultiplier = 1) => {
-  let dmg = Math.floor((base + combat.playerStrength) * damageMultiplier);
-  if (combat.enemyVuln > 0) dmg = Math.floor(dmg * 1.5);
-  return dmg;
-};
-
-const applyDamageToEnemy = (dmg, combat) => {
-  let actualDmg = Math.max(0, dmg - combat.enemyBlock);
-  combat.enemyBlock = Math.max(0, combat.enemyBlock - dmg);
-  combat.enemyHp -= actualDmg;
-  return actualDmg;
-};
-
-const applyDamageToPlayer = (base, s, c) => {
-  let dmg = base + (c.enemyStrength || 0); 
-  if (c.enemyWeak > 0) dmg = Math.floor(dmg * 0.75);
-  if (c.playerVuln > 0) dmg = Math.floor(dmg * 1.5);
-  let actualDmg = Math.max(0, dmg - c.playerBlock);
-  c.playerBlock = Math.max(0, c.playerBlock - dmg);
-  s.hp -= actualDmg;
-};
-
-const executeCard = (cardName, s, c, options = {}) => {
-  const definition = getCardDefinition(cardName);
-  if (!definition || definition.effectSpec.unplayable === '1') return definition;
-
-  const spec = definition.effectSpec;
-  const damageMultiplier = options.damageMultiplier ?? 1;
-  const onDamage = options.onDamage;
-  const hits = getNumericEffect(spec, 'hits', 1);
-  const damage = getNumericEffect(spec, 'damage', 0);
-  const block = getNumericEffect(spec, 'block', 0);
-  const draw = getNumericEffect(spec, 'draw', 0);
-  const strength = getNumericEffect(spec, 'strength', 0);
-  const vulnerable = getNumericEffect(spec, 'vulnerable', 0);
-  const weak = getNumericEffect(spec, 'weak', 0);
-  const heal = getNumericEffect(spec, 'heal', 0);
-  const selfDamage = getNumericEffect(spec, 'self_damage', 0);
-  const claw = spec.claw ? spec.claw.split(':').map(Number) : null;
-  const perfected = spec.perfected ? spec.perfected.split(':').map(Number) : null;
-
-  if (damage > 0) {
-    for (let i = 0; i < hits; i += 1) {
-      const actualDamage = applyDamageToEnemy(calcDamage(damage, c, damageMultiplier), c);
-      if (actualDamage > 0 && onDamage) onDamage(actualDamage, i);
-    }
-  }
-  if (block > 0) c.playerBlock += block;
-  if (draw > 0) drawCards(c, draw);
-  if (strength > 0) c.playerStrength += strength;
-  if (vulnerable > 0) c.enemyVuln += vulnerable;
-  if (weak > 0) c.enemyWeak += weak;
-  if (heal > 0) s.hp = Math.min(s.maxHp, s.hp + heal);
-  if (selfDamage > 0) s.hp = Math.max(1, s.hp - selfDamage);
-  if (spec.double_strength === '1') c.playerStrength *= 2;
-  if (perfected) {
-    const [baseDamage, perStrikeBonus] = perfected;
-    const strikeCount = s.deck.filter(card => card.includes('Strike')).length;
-    const actualDamage = applyDamageToEnemy(calcDamage(baseDamage + strikeCount * perStrikeBonus, c, damageMultiplier), c);
-    if (actualDamage > 0 && onDamage) onDamage(actualDamage, 0);
-  }
-  if (claw) {
-    const [baseDamage, growth] = claw;
-    c.clawBase = c.clawBase || baseDamage;
-    const actualDamage = applyDamageToEnemy(calcDamage(c.clawBase, c, damageMultiplier), c);
-    if (actualDamage > 0 && onDamage) onDamage(actualDamage, 0);
-    c.clawBase += growth;
-  }
-  if (spec.power) {
-    const [powerKey, rawValue] = spec.power.split(':');
-    const powerValue = Number(rawValue || 0);
-    if (powerKey === 'strength') c.playerStrength += powerValue;
-    if (powerKey === 'demon_form') c.activePowers.demonForm += powerValue;
-    if (powerKey === 'noxious_fumes') c.activePowers.noxiousFumes += powerValue;
-    if (powerKey === 'echo_form') c.activePowers.echoForm += Math.max(1, powerValue);
-    if (powerKey === 'block_each_turn') c.activePowers.blockEachTurn += powerValue;
-    if (powerKey === 'draw_each_turn') c.activePowers.drawEachTurn += powerValue;
-  }
-
-  return definition;
-};
-
-const cloneCombatForPreview = (gameState) => {
-  const c = gameState.combat;
-  if (!c) return null;
-  const simCombat = {
-    ...c,
-    hand: [...(c.hand || [])],
-    drawPile: [...(c.drawPile || [])],
-    discardPile: [...(c.discardPile || [])],
-    activePowers: { ...(c.activePowers || {}) },
-    intent: c.intent ? { ...c.intent } : null
-  };
-
-  return {
-    ...gameState,
-    deck: [...(gameState.deck || [])],
-    relics: [...(gameState.relics || [])],
-    combat: simCombat
-  };
-};
-
-const getCombatPreviewForCard = (gameState, cardName) => {
-  if (!gameState?.combat || !cardName) return null;
-
-  const simState = cloneCombatForPreview(gameState);
-  const simCombat = simState.combat;
-  const cardDefinition = getCardDefinition(cardName);
-  if (!cardDefinition) return null;
-
-  const penNibTriggers = simState.relics.includes('Pen Nib') && (((simCombat.cardsPlayed || 0) + 1) % 3 === 0);
-  const damageMultiplier = penNibTriggers ? 2 : 1;
-  const shouldEcho = (simCombat.activePowers.echoForm || 0) > 0 && (simCombat.turnCardsPlayed || 0) === 0;
-
-  if (simState.relics.includes('Cracked Core')) simCombat.playerBlock += 2;
-  executeCard(cardName, simState, simCombat, { damageMultiplier });
-  if (shouldEcho) {
-    executeCard(cardName, simState, simCombat, { damageMultiplier });
-  }
-
-  return {
-    playerHp: simState.hp,
-    playerBlock: simCombat.playerBlock,
-    enemyHp: simCombat.enemyHp,
-    enemyBlock: simCombat.enemyBlock
-  };
-};
-
-const getIntentPlayerPreview = (gameState, overrides = {}) => {
-  const combat = gameState?.combat;
-  if (!combat?.intent || combat.intent.type !== 'attack') return null;
-
-  const damage = combat.intent.projectedDmg ?? 0;
-  const baseBlock = overrides.playerBlock ?? combat.playerBlock;
-  const baseHp = overrides.playerHp ?? gameState.hp;
-  const nextBlock = Math.max(0, baseBlock - damage);
-  const hpLoss = Math.max(0, damage - baseBlock);
-
-  return {
-    playerBlock: nextBlock,
-    playerHp: Math.max(0, baseHp - hpLoss)
-  };
-};
-
 // --- PROCEDURAL GENERATION ENGINE ---
 
-const getEnemyPatternText = (sequence) => ({
-  en: sequence.map(move => ENEMY_MOVE_LABELS[move.type].en).join(' -> '),
-  ja: sequence.map(move => ENEMY_MOVE_LABELS[move.type].ja).join(' -> '),
-  zh: sequence.map(move => ENEMY_MOVE_LABELS[move.type].zh).join(' -> ')
-});
+// --- ENCOUNTER GENERATORS ---
 
-const generateProceduralRun = (act) => {
-  const hpMult = act === 1 ? 1 : act === 2 ? 1.4 : 1.75;
-  const damageMult = act === 1 ? 1 : act === 2 ? 1.35 : 1.65;
-
-  const patternMap = {
-    aggressive: (dmg, isBoss) => [
-      { type: 'attack', val: dmg },
-      { type: 'attack', val: dmg + (isBoss ? 8 : 4) },
-      { type: 'defend', val: Math.max(6, Math.floor(dmg * 0.8)) }
-    ],
-    guarded: (dmg, isBoss) => [
-      { type: 'defend', val: Math.max(8, Math.floor(dmg * 1.8)) },
-      { type: 'attack', val: dmg },
-      { type: 'buff', val: isBoss ? 3 : 1 }
-    ],
-    hexer: (dmg, isBoss) => [
-      { type: 'buff', val: isBoss ? 3 : 1 },
-      { type: 'attack', val: dmg + (isBoss ? 6 : 3) },
-      { type: 'defend', val: Math.max(6, Math.floor(dmg)) }
-    ],
-    berserk: (dmg, isBoss) => [
-      { type: 'attack', val: dmg + (isBoss ? 4 : 2) },
-      { type: 'buff', val: isBoss ? 4 : 2 },
-      { type: 'attack', val: dmg + (isBoss ? 10 : 5) }
-    ],
-    boss_guardian: (dmg) => [
-      { type: 'defend', val: Math.floor(dmg * 2) },
-      { type: 'attack', val: dmg },
-      { type: 'buff', val: 3 },
-      { type: 'attack', val: dmg + 10 }
-    ],
-    boss_collector: (dmg) => [
-      { type: 'buff', val: 3 },
-      { type: 'attack', val: dmg + 4 },
-      { type: 'defend', val: Math.floor(dmg * 1.6) },
-      { type: 'attack', val: dmg + 12 }
-    ],
-    boss_time: (dmg) => [
-      { type: 'attack', val: dmg },
-      { type: 'defend', val: Math.floor(dmg * 1.8) },
-      { type: 'buff', val: 4 },
-      { type: 'attack', val: dmg + 14 }
-    ]
-  };
-
-  const shuffle = (items) => {
-    const copy = [...items];
-    for (let i = copy.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
-    return copy;
-  };
-
-  const instantiateEnemy = (template, tier) => {
-    const isBoss = tier === 'boss';
-    const scaledDamage = Math.max(4, Math.floor(template.baseDamage * damageMult));
-    const hpVariance = isBoss ? 0 : Math.floor(Math.random() * 8);
-    const hp = Math.floor(template.baseHp * hpMult) + hpVariance;
-    const sequence = patternMap[template.pattern](scaledDamage, isBoss);
-    const codexKey = getEnemyCodexKey(tier, template.names.en);
-    const codexPattern = getEnemyPatternText(sequence);
-
-    return {
-      id: `${template.key.toUpperCase()}_${Math.floor(Math.random() * 1000)}`,
-      tier,
-      names: template.names,
-      hp,
-      spriteKey: template.spriteKey,
-      codexKey,
-      codexPattern,
-      getAction: (turn, c) => {
-        const move = sequence[(turn - 1) % sequence.length];
-        if (move.type === 'attack') {
-          let projectedDmg = move.val + (c.enemyStrength || 0);
-          if (c.enemyWeak > 0) projectedDmg = Math.floor(projectedDmg * 0.75);
-          if (c.playerVuln > 0) projectedDmg = Math.floor(projectedDmg * 1.5);
-          return {
-            type: 'attack',
-            value: move.val,
-            projectedDmg,
-            text: localizeTemplate(COPY.enemyIntent.attack, { projectedDmg }),
-            execute: (s, combat) => applyDamageToPlayer(move.val, s, combat)
-          };
-        }
-        if (move.type === 'defend') {
-          return {
-            type: 'defend',
-            value: move.val,
-            text: localizeTemplate(COPY.enemyIntent.defend, { value: move.val }),
-            execute: (s, combat) => { combat.enemyBlock += move.val; }
-          };
-        }
-        return {
-          type: 'buff',
-          value: move.val,
-          text: localizeTemplate(COPY.enemyIntent.buff, { value: move.val }),
-          execute: (s, combat) => { combat.enemyStrength += move.val; }
-        };
-      }
-    };
-  };
-
-  const generateEvent = () => {
-    const goldCost = Math.floor(20 + Math.random() * 40 * hpMult);
-    const hpCost = Math.floor(8 + Math.random() * 10 * hpMult);
-    return {
-      title: COPY.nodes.mysteriousDiscovery.title,
-      type: "Event",
-      spriteKey: "event_crystal",
-      icon: <Sparkles className="w-12 h-12 text-blue-400" />,
-      text: COPY.nodes.mysteriousDiscovery.text,
-      choices: [
-        { label: COPY.nodes.mysteriousDiscovery.takeRisk, effectText: localizeTemplate(COPY.nodes.mysteriousDiscovery.takeRiskEffect, { hpCost }), action: (state) => ({ hp: state.hp - hpCost, relics: appendRelicIfAvailable(state, pickRewardRelic(state)) }) },
-        { label: COPY.nodes.mysteriousDiscovery.trade, effectText: localizeTemplate(COPY.nodes.mysteriousDiscovery.tradeEffect, { goldCost }), condition: (state) => state.gold >= goldCost, action: (state) => ({ gold: state.gold - goldCost, deck: [...state.deck, getRandomItem(getStateRewardCardPool(state))] }) },
-        { label: COPY.nodes.mysteriousDiscovery.leave, effectText: COPY.nodes.mysteriousDiscovery.leaveEffect, action: (state) => ({}) }
-      ]
-    };
-  };
-
-  const normals = shuffle(ENEMY_LIBRARY.normal).slice(0, 10).map((template) => instantiateEnemy(template, 'normal'));
-  const elites = shuffle(ENEMY_LIBRARY.elite).slice(0, 4).map((template) => instantiateEnemy(template, 'elite'));
-  const bossTemplate = ENEMY_LIBRARY.boss.find((entry) => entry.act === act) || ENEMY_LIBRARY.boss[0];
-  const boss = instantiateEnemy(bossTemplate, 'boss');
-  const events = Array(5).fill(null).map(() => generateEvent());
-
-  return { normals, elites, boss, events, allEnemies: [...normals, ...elites, boss] };
+const applyDamageToPlayer = (base, state, combat) => {
+  let damage = base + (combat.enemyStrength || 0);
+  if (combat.enemyWeak > 0) damage = Math.floor(damage * 0.75);
+  if (combat.playerVuln > 0) damage = Math.floor(damage * 1.5);
+  const actualDamage = Math.max(0, damage - (combat.playerBlock || 0));
+  combat.playerBlock = Math.max(0, (combat.playerBlock || 0) - damage);
+  state.hp -= actualDamage;
+  return actualDamage;
 };
 
-// --- ENCOUNTER GENERATORS ---
+const buildRunContent = (act, runSeed) => {
+  const rng = createSeededRng(deriveSeed(runSeed, 'run-content', act));
+  const hpMult = act === 1 ? 1 : act === 2 ? 1.4 : 1.75;
+  const eventRng = rng.fork(`events:${act}`);
+  const runContent = generateProceduralRun({
+    act,
+    rng,
+    enemyLibrary: ENEMY_LIBRARY,
+    enemyMoveLabels: ENEMY_MOVE_LABELS,
+    copy: COPY,
+    localizeTemplate,
+    getEnemyCodexKey,
+    applyDamageToPlayer
+  });
+
+  const events = Array.from({ length: 5 }, (_, index) => {
+    const roomRng = eventRng.fork(index);
+    return createEventNode(
+      `event:${act}:${index}`,
+      {
+        goldCost: Math.floor(20 + roomRng.next() * 40 * hpMult),
+        hpCost: Math.floor(8 + roomRng.next() * 10 * hpMult)
+      },
+      { copy: COPY, localizeTemplate }
+    );
+  });
+
+  return {
+    ...runContent,
+    events,
+    route: buildMapRoute({ ...runContent, events }, { copy: COPY, rng: rng.fork(`route:${act}`) })
+  };
+};
 
 const getRewardNode = (enemy) => {
   const rewardTier = enemy?.tier || 'normal';
@@ -1906,23 +2010,21 @@ export default function App() {
   const [slotSummaries, setSlotSummaries] = useState({});
   const [metaProgress, setMetaProgress] = useState(createDefaultMetaProgress());
   const [gameState, setGameState] = useState({
-    characterKey: null,
-    character: null,
+    ...createInitialSoloRuntimeState(),
     unlockedCards: [...STARTER_UNLOCKED_CARDS],
-    unlockedRelics: [...STARTER_UNLOCKED_RELICS],
-    hp: 80,
-    maxHp: 80,
-    gold: 99,
-    floor: 0,
-    act: 1,
-    deck: [],
-    relics: [],
-    route: [],
-    combat: null,
-    runContent: null
+    unlockedRelics: [...STARTER_UNLOCKED_RELICS]
   });
+  const [sessionState, setSessionState] = useState(() => adaptSoloRuntimeToSession({
+    runtimeState: {
+      ...createInitialSoloRuntimeState(),
+      unlockedCards: [...STARTER_UNLOCKED_CARDS],
+      unlockedRelics: [...STARTER_UNLOCKED_RELICS]
+    },
+    currentNode: createNeowRoomNode({ copy: COPY }),
+    playerId: LOCAL_PLAYER_ID
+  }));
 
-  const [currentNode, setCurrentNode] = useState(getNeowNode());
+  const [currentNode, setCurrentNode] = useState(createNeowRoomNode({ copy: COPY }));
   const [hoveredInfo, setHoveredInfo] = useState(null);
   
   const [effect, setEffect] = useState(null);
@@ -1940,6 +2042,547 @@ export default function App() {
   const [achievementToasts, setAchievementToasts] = useState([]);
   const [isInGameMenuOpen, setIsInGameMenuOpen] = useState(false);
   const [inGameMenuTab, setInGameMenuTab] = useState('options');
+  const [pendingRoomResolution, setPendingRoomResolution] = useState(null);
+  const [roomVoteTick, setRoomVoteTick] = useState(0);
+  const [pendingRewardResolution, setPendingRewardResolution] = useState(null);
+  const [rewardTick, setRewardTick] = useState(0);
+  const [remoteActionTick, setRemoteActionTick] = useState(0);
+  const resolvedRewardRoomRef = React.useRef(null);
+
+  const [debugPartySize, setDebugPartySize] = useState(1);
+  const [clientPlayerId, setClientPlayerId] = useState(LOCAL_PLAYER_ID);
+  const [localNetworkMode, setLocalNetworkMode] = useState('offline');
+  const [localRoomId, setLocalRoomId] = useState('');
+  const [localConnectionState, setLocalConnectionState] = useState({
+    transport: 'none',
+    phase: 'offline'
+  });
+  const localSessionBridge = useMemo(() => createLocalSessionBridge({ playerId: clientPlayerId }), [clientPlayerId]);
+  const localSyncAckRef = React.useRef(0);
+  const localPeerRef = React.useRef(null);
+  const pendingRemoteActionRef = React.useRef(null);
+  const currentNodeRef = React.useRef(currentNode);
+  const [clientSyncMessage, setClientSyncMessage] = useState(() => (
+    localSessionBridge.toStateSyncMessage(sessionState, 'sync-0')
+  ));
+  const clientState = clientSyncMessage.state;
+  const applyProtocolActionLocally = useCallback((prevSession, action) => {
+    const result = localSessionBridge.applyAction(prevSession, action);
+    if (!result.accepted) {
+      console.warn('Rejected local protocol action', result.reason, action);
+      return prevSession;
+    }
+    return result.sessionState;
+  }, [localSessionBridge]);
+  const validateProtocolActionLocally = useCallback((action) => (
+    localSessionBridge.applyAction(sessionState, action)
+  ), [localSessionBridge, sessionState]);
+
+  const applyImmediateSessionAction = useCallback((prevSession, action, nodeOverride = null) => {
+    let nextSession = applyProtocolActionLocally(prevSession, action);
+    let resolvedRewardPayload = null;
+
+    if (action?.type === CLIENT_ACTIONS.SELECT_REWARD) {
+      const rewardNode = nodeOverride || currentNodeRef.current;
+      const activeRewardState = rewardNode?.type === 'Reward' && nextSession.reward?.roomId === rewardNode?.nodeId
+        ? nextSession.reward
+        : null;
+      if (activeRewardState) {
+        const resolution = finalizeRewardState({
+          rewardState: activeRewardState,
+          eligiblePlayerIds: getEligibleRoomParticipants(nextSession),
+          getDefaultChoiceId: (rewardPreview) => getDeterministicRewardChoiceId(rewardPreview, rewardNode),
+          now: Date.now()
+        });
+        if (resolution.status === 'resolved') {
+          nextSession = {
+            ...nextSession,
+            reward: resolution.rewardState
+          };
+          resolvedRewardPayload = {
+            roomId: activeRewardState.roomId,
+            rewardState: resolution.rewardState
+          };
+        }
+      }
+    }
+
+    return {
+      nextSession,
+      resolvedRewardPayload
+    };
+  }, [applyProtocolActionLocally]);
+
+  useEffect(() => {
+    localSyncAckRef.current += 1;
+    setClientSyncMessage(
+      localSessionBridge.toStateSyncMessage(sessionState, `sync-${localSyncAckRef.current}`)
+    );
+  }, [localSessionBridge, sessionState]);
+
+  const isLocalNetworkHost = localNetworkMode === 'local-host';
+  const isLocalNetworkClient = localNetworkMode === 'local-client';
+  const isLocalNetworkActive = isLocalNetworkHost || isLocalNetworkClient;
+
+  useEffect(() => {
+    currentNodeRef.current = currentNode;
+  }, [currentNode]);
+
+  useEffect(() => {
+    if (!isLocalNetworkActive || !localRoomId) return undefined;
+
+    localPeerRef.current?.close?.();
+    localPeerRef.current = createLocalSessionStore({
+      roomId: localRoomId,
+      playerId: clientPlayerId,
+      mode: localNetworkMode,
+      guestName: 'Guest Player',
+      onSync: (payload) => {
+        const syncedSession = payload.sessionState;
+        setSessionState(syncedSession);
+        const syncedNode = payload.currentNode || syncedSession?.run?.currentRoom || null;
+        if (syncedNode) setCurrentNode(syncedNode);
+        if (payload.runContent || syncedSession) {
+          setGameState((prev) => {
+            const projectedRuntime = projectSessionToSoloRuntime({
+              sessionState: syncedSession,
+              fallbackRuntimeState: {
+                ...prev,
+                runContent: payload.runContent || prev.runContent
+              },
+              playerId: clientPlayerId
+            });
+            const syncedCombatState = buildSessionCombatState({
+              session: syncedSession,
+              runtimeState: projectedRuntime,
+              currentNode: payload.currentNode || currentNodeRef.current,
+              enemyData: null,
+              preferExisting: true
+            });
+            const nextRuntime = projectSessionToSoloRuntime({
+              sessionState: {
+                ...syncedSession,
+                combat: syncedCombatState
+              },
+              fallbackRuntimeState: {
+                ...prev,
+                runContent: payload.runContent || prev.runContent
+              },
+              playerId: clientPlayerId
+            });
+            return {
+              ...nextRuntime,
+              runContent: payload.runContent || prev.runContent,
+              character: nextRuntime.characterKey
+                ? CHARACTERS[nextRuntime.characterKey] || nextRuntime.character || null
+                : null
+            };
+          });
+        }
+      },
+      onJoin: (payload) => {
+        setSessionState((prev) => {
+          const existingLobbyPlayer = prev.lobby?.players?.[payload.playerId];
+          const existingPartyPlayer = prev.party?.players?.[payload.playerId];
+          const nextLobbyPlayers = {
+            ...(prev.lobby?.players || {}),
+            [payload.playerId]: existingLobbyPlayer
+              ? {
+                  ...existingLobbyPlayer,
+                  name: payload.name || existingLobbyPlayer.name || 'Guest Player',
+                  connected: true,
+                  ready: existingLobbyPlayer.ready,
+                  selectedCharacterKey: existingLobbyPlayer.selectedCharacterKey || null
+                }
+              : createLobbyPlayerState({
+                  playerId: payload.playerId,
+                  name: payload.name || 'Guest Player',
+                  connected: true,
+                  ready: false
+                })
+          };
+          const nextPartyPlayers = {
+            ...(prev.party?.players || {}),
+            [payload.playerId]: existingPartyPlayer
+              ? {
+                  ...existingPartyPlayer,
+                  name: payload.name || existingPartyPlayer.name || 'Guest Player',
+                  connected: true,
+                  skipped: false
+                }
+              : createPartyPlayerState({
+                  playerId: payload.playerId,
+                  name: payload.name || 'Guest Player',
+                  unlocks: {
+                    cards: [...metaProgress.unlockedCards],
+                    relics: [...metaProgress.unlockedRelics]
+                  }
+                })
+          };
+          return {
+            ...prev,
+            lobby: {
+              ...(prev.lobby || {}),
+              players: nextLobbyPlayers,
+              readyPlayerIds: Object.values(nextLobbyPlayers).filter((player) => player.ready).map((player) => player.playerId)
+            },
+            party: {
+              ...(prev.party || {}),
+              order: Array.from(new Set([...(prev.party?.order || []), payload.playerId])),
+              players: nextPartyPlayers
+            }
+          };
+        });
+      },
+      onAction: (action) => {
+        if (isImmediateLocalNetworkAction(action)) {
+          let resolvedRewardPayload = null;
+          setSessionState((prev) => {
+            const result = applyImmediateSessionAction(prev, action, currentNodeRef.current);
+            resolvedRewardPayload = result.resolvedRewardPayload;
+            return result.nextSession;
+          });
+          if (action?.type === CLIENT_ACTIONS.SELECT_REWARD) {
+            setRewardTick((tick) => tick + 1);
+          }
+          if (resolvedRewardPayload) {
+            setPendingRewardResolution(resolvedRewardPayload);
+          }
+          return;
+        }
+        pendingRemoteActionRef.current = action;
+        setRemoteActionTick((tick) => tick + 1);
+      },
+      onLeave: (payload) => {
+        setSessionState((prev) => {
+          if (!prev.lobby?.players?.[payload.playerId] && !prev.party?.players?.[payload.playerId]) return prev;
+          return {
+            ...prev,
+            lobby: {
+              ...(prev.lobby || {}),
+              players: {
+                ...(prev.lobby?.players || {}),
+                [payload.playerId]: {
+                  ...(prev.lobby?.players?.[payload.playerId] || {}),
+                  connected: false
+                }
+              },
+              readyPlayerIds: Object.values({
+                ...(prev.lobby?.players || {}),
+                [payload.playerId]: {
+                  ...(prev.lobby?.players?.[payload.playerId] || {}),
+                  connected: false
+                }
+              })
+                .filter((player) => player.ready && player.connected !== false)
+                .map((player) => player.playerId)
+            },
+            party: {
+              ...(prev.party || {}),
+              players: {
+                ...(prev.party?.players || {}),
+                [payload.playerId]: {
+                  ...(prev.party?.players?.[payload.playerId] || {}),
+                  connected: false,
+                  skipped: true
+                }
+              }
+            }
+          };
+        });
+      },
+      onStatus: (status) => {
+        setLocalConnectionState(status);
+      }
+    });
+
+    return () => {
+      localPeerRef.current?.close?.();
+      localPeerRef.current = null;
+    };
+  }, [applyProtocolActionLocally, clientPlayerId, isLocalNetworkActive, localNetworkMode, localRoomId, metaProgress.unlockedCards, metaProgress.unlockedRelics]);
+
+  useEffect(() => {
+    if (!isLocalNetworkHost || !localPeerRef.current) return;
+    localPeerRef.current.broadcastSync({
+      sessionState,
+      currentNode,
+      runContent: gameState.runContent || null
+    });
+  }, [currentNode, gameState.runContent, isLocalNetworkHost, sessionState]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const queryValue = Number(params.get('debugParty') || '');
+      const storedValue = Number(window.localStorage.getItem(DEBUG_PARTY_SIZE_STORAGE_KEY) || '1');
+      const initialValue = Number.isFinite(queryValue) && queryValue > 0 ? queryValue : storedValue;
+      setDebugPartySize(Math.min(4, Math.max(1, initialValue || 1)));
+    } catch (error) {
+      setDebugPartySize(1);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LOCAL_ONLINE_SESSION_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved?.mode === 'local-client' && saved?.roomId && saved?.playerId) {
+        setClientPlayerId(saved.playerId);
+        setLocalRoomId(saved.roomId);
+        setLocalNetworkMode('local-client');
+      }
+    } catch (error) {
+      console.warn('Failed to restore local online session', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DEBUG_PARTY_SIZE_STORAGE_KEY, String(debugPartySize));
+    } catch (error) {
+      console.warn('Failed to persist debug party size', error);
+    }
+  }, [debugPartySize]);
+
+  useEffect(() => {
+    try {
+      if (localNetworkMode === 'local-client' && localRoomId && clientPlayerId) {
+        window.localStorage.setItem(LOCAL_ONLINE_SESSION_STORAGE_KEY, JSON.stringify({
+          mode: localNetworkMode,
+          roomId: localRoomId,
+          playerId: clientPlayerId
+        }));
+      } else {
+        window.localStorage.removeItem(LOCAL_ONLINE_SESSION_STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn('Failed to persist local online session', error);
+    }
+  }, [clientPlayerId, localNetworkMode, localRoomId]);
+
+  const applyDebugPartyMembers = useCallback((session, localCharacterKey) => {
+    if (debugPartySize <= 1 || !localCharacterKey) return session;
+
+    const unlockedKeys = metaProgress.unlockedCharacters.filter(Boolean);
+    const lobbyPlayers = { ...(session.lobby?.players || {}) };
+    const partyPlayers = { ...(session.party?.players || {}) };
+    const order = [LOCAL_PLAYER_ID];
+
+    for (let index = 1; index < debugPartySize; index += 1) {
+      const playerId = `debug-player-${index + 1}`;
+      const fallbackKey = unlockedKeys.find((key) => key !== localCharacterKey) || localCharacterKey;
+      const characterKey = unlockedKeys[index] || fallbackKey;
+      const character = CHARACTERS[characterKey] || CHARACTERS[localCharacterKey];
+
+      lobbyPlayers[playerId] = createLobbyPlayerState({
+        playerId,
+        name: `Debug Ally ${index + 1}`,
+        selectedCharacterKey: characterKey,
+        connected: true,
+        ready: true
+      });
+
+      partyPlayers[playerId] = createPartyPlayerState({
+        playerId,
+        name: `Debug Ally ${index + 1}`,
+        characterKey,
+        hp: character.hp,
+        maxHp: character.hp,
+        gold: 99,
+        deck: character.deck,
+        relics: character.relics,
+        unlocks: {
+          cards: metaProgress.unlockedCards,
+          relics: metaProgress.unlockedRelics
+        }
+      });
+
+      order.push(playerId);
+    }
+
+    return {
+      ...session,
+      lobby: {
+        players: lobbyPlayers,
+        readyPlayerIds: order
+      },
+      party: {
+        order,
+        players: partyPlayers
+      }
+    };
+  }, [debugPartySize, metaProgress.unlockedCards, metaProgress.unlockedCharacters, metaProgress.unlockedRelics]);
+
+  const commitRuntimeState = useCallback((nextRuntimeState, nextNode = currentNode, options = {}) => {
+    setSessionState(prev => {
+      const nextSession = applySoloRuntimeToSession({
+        sessionState: prev,
+        runtimeState: nextRuntimeState,
+        currentNode: nextNode,
+        playerId: clientPlayerId
+      });
+      const transformedSession = options.transformSession ? options.transformSession(nextSession) : nextSession;
+      const enemyData = nextRuntimeState?.combat?.enemyId
+        ? nextRuntimeState.runContent?.allEnemies?.find((enemy) => enemy.id === nextRuntimeState.combat.enemyId)
+        : null;
+      const combatState = buildSessionCombatState({
+        session: transformedSession,
+        runtimeState: nextRuntimeState,
+        currentNode: nextNode,
+        enemyData
+      });
+      const combatPlayers = combatState?.players || null;
+      const syncedPartyPlayers = combatPlayers
+        ? Object.fromEntries(
+            Object.entries(transformedSession.party?.players || {}).map(([playerId, playerState]) => {
+              const combatPlayer = combatPlayers[playerId];
+              if (!combatPlayer) return [playerId, playerState];
+              return [
+                playerId,
+                {
+                  ...playerState,
+                  combat: {
+                    ...(playerState.combat || {}),
+                    block: combatPlayer.block,
+                    strength: combatPlayer.strength,
+                    vuln: combatPlayer.vuln,
+                    weak: combatPlayer.weak,
+                    hand: [...(combatPlayer.hand || [])],
+                    drawPile: [...(combatPlayer.drawPile || [])],
+                    discardPile: [...(combatPlayer.discardPile || [])],
+                    cardsPlayedThisCombat: combatPlayer.cardsPlayedThisCombat || 0,
+                    cardsPlayedThisTurn: combatPlayer.cardsPlayedThisTurn || 0,
+                    activePowers: { ...(combatPlayer.activePowers || {}) },
+                    endedTurn: Boolean(combatPlayer.endedTurn)
+                  }
+                }
+              ];
+            })
+          )
+        : transformedSession.party?.players;
+      const sessionWithCombat = {
+        ...transformedSession,
+        party: {
+          ...(transformedSession.party || {}),
+          players: syncedPartyPlayers
+        },
+        combat: combatState
+      };
+      if (nextNode?.type !== 'Reward') {
+        return {
+          ...sessionWithCombat,
+          reward: null
+        };
+      }
+
+      const rewardEntries = Object.fromEntries(
+        (sessionWithCombat.party?.order || [])
+          .map((playerId) => sessionWithCombat.party?.players?.[playerId])
+          .filter(Boolean)
+          .map((playerState) => [
+            playerState.playerId,
+            buildPlayerRewardPreview({
+              playerState,
+              rewardNode: nextNode,
+              runSeed: nextRuntimeState.runSeed
+            })
+          ])
+      );
+
+      return {
+        ...sessionWithCombat,
+        reward: {
+          roomId: nextNode.nodeId,
+          openedAt: Date.now(),
+          deadlineAt: Date.now() + 30000,
+          perPlayer: rewardEntries
+        }
+      };
+    });
+    setGameState(nextRuntimeState);
+  }, [currentNode]);
+
+  useEffect(() => {
+    setGameState(prev => {
+      const nextRuntimeState = projectSessionToSoloRuntime({
+        sessionState,
+        fallbackRuntimeState: prev,
+        playerId: clientPlayerId
+      });
+      const resolvedCharacter = nextRuntimeState.characterKey
+        ? CHARACTERS[nextRuntimeState.characterKey] || nextRuntimeState.character || null
+        : null;
+      return {
+        ...nextRuntimeState,
+        character: resolvedCharacter
+      };
+    });
+  }, [sessionState]);
+
+  useEffect(() => {
+    if (debugPartySize <= 1 || !gameState.characterKey) return;
+    setSessionState(prev => {
+      const currentPartySize = prev?.party?.order?.length || 0;
+      if (currentPartySize >= debugPartySize) return prev;
+      return applyDebugPartyMembers(prev, gameState.characterKey);
+    });
+  }, [applyDebugPartyMembers, debugPartySize, gameState.characterKey]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient) return;
+    if (!gameState.combat?.active) return;
+    if (sessionState.run?.status !== 'in_combat') return;
+    if (currentNode?.type === 'Reward' || currentNode?.type === 'Game Over' || currentNode?.type === 'Victory') return;
+    setSessionState(prev => {
+      if (!prev?.combat) return prev;
+      const currentCombatPlayers = Object.keys(prev?.combat?.players || {}).length;
+      const targetCombatPlayers = prev?.party?.order?.length || 0;
+      if (currentCombatPlayers >= targetCombatPlayers) return prev;
+      const enemyData = gameState.runContent?.allEnemies?.find((enemy) => enemy.id === gameState.combat.enemyId);
+      const combatState = buildSessionCombatState({
+        session: prev,
+        runtimeState: gameState,
+        currentNode,
+        enemyData
+      });
+      if (!combatState) return prev;
+      return {
+        ...prev,
+        combat: combatState,
+        party: {
+          ...(prev.party || {}),
+          players: Object.fromEntries(
+            Object.entries(prev.party?.players || {}).map(([playerId, playerState]) => {
+              const combatPlayer = combatState.players?.[playerId];
+              if (!combatPlayer) return [playerId, playerState];
+              return [
+                playerId,
+                {
+                  ...playerState,
+                  combat: {
+                    ...(playerState.combat || {}),
+                    block: combatPlayer.block,
+                    strength: combatPlayer.strength,
+                    vuln: combatPlayer.vuln,
+                    weak: combatPlayer.weak,
+                    hand: [...(combatPlayer.hand || [])],
+                    drawPile: [...(combatPlayer.drawPile || [])],
+                    discardPile: [...(combatPlayer.discardPile || [])],
+                    cardsPlayedThisCombat: combatPlayer.cardsPlayedThisCombat || 0,
+                    cardsPlayedThisTurn: combatPlayer.cardsPlayedThisTurn || 0,
+                    activePowers: { ...(combatPlayer.activePowers || {}) },
+                    endedTurn: Boolean(combatPlayer.endedTurn)
+                  }
+                }
+              ];
+            })
+          )
+        }
+      };
+    });
+  }, [currentNode, gameState, isLocalNetworkClient, sessionState.run?.status]);
 
   const audioContextRef = React.useRef(null);
   const bgmAudioRef = React.useRef(null);
@@ -2370,7 +3013,10 @@ export default function App() {
   }, []);
 
   const showAchievementToast = useCallback((achievement) => {
-    const toast = { id: `${achievement.id}-${Date.now()}`, achievement };
+    const toast = {
+      id: `${achievement.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      achievement
+    };
     setAchievementToasts(prev => [...prev, toast]);
     setTimeout(() => {
       setAchievementToasts(prev => prev.filter(item => item.id !== toast.id));
@@ -2381,7 +3027,11 @@ export default function App() {
       if (gameState.character) {
           if (window.confirm(UI.lang_warning[newLang])) {
               setLang(newLang);
-              setGameState(prev => ({ ...prev, character: null, characterKey: null }));
+              commitRuntimeState({
+                ...createInitialSoloRuntimeState(),
+                unlockedCards: [...gameState.unlockedCards],
+                unlockedRelics: [...gameState.unlockedRelics]
+              }, createNeowRoomNode({ copy: COPY }));
               setTitleView('heroes');
           }
       } else {
@@ -2427,13 +3077,99 @@ export default function App() {
     });
   }, [addRewardEffect, lang, playSound, showAchievementToast]);
 
+  const hostLocalRoom = useCallback(() => {
+    const roomId = createLocalRoomId();
+    setClientPlayerId(LOCAL_PLAYER_ID);
+    setLocalRoomId(roomId);
+    setLocalNetworkMode('local-host');
+    setSessionState(adaptSoloRuntimeToSession({
+      runtimeState: {
+        ...createInitialSoloRuntimeState(),
+        unlockedCards: [...STARTER_UNLOCKED_CARDS],
+        unlockedRelics: [...STARTER_UNLOCKED_RELICS]
+      },
+      currentNode: createNeowRoomNode({ copy: COPY }),
+      playerId: LOCAL_PLAYER_ID
+    }));
+    setGameState({
+      ...createInitialSoloRuntimeState(),
+      unlockedCards: [...STARTER_UNLOCKED_CARDS],
+      unlockedRelics: [...STARTER_UNLOCKED_RELICS]
+    });
+    setCurrentNode(createNeowRoomNode({ copy: COPY }));
+  }, []);
+
+  const joinLocalRoom = useCallback(() => {
+    const roomId = window.prompt('Enter local room code');
+    if (!roomId) return;
+    setClientPlayerId('guest-player');
+    setLocalRoomId(roomId.trim());
+    setLocalNetworkMode('local-client');
+  }, []);
+
+  const reconnectLocalRoom = useCallback(() => {
+    localPeerRef.current?.reconnect?.();
+  }, []);
+
+  const leaveLocalRoom = useCallback(() => {
+    localPeerRef.current?.close?.();
+    localPeerRef.current = null;
+    setLocalRoomId('');
+    setLocalNetworkMode('offline');
+    setClientPlayerId(LOCAL_PLAYER_ID);
+    setSessionState(adaptSoloRuntimeToSession({
+      runtimeState: {
+        ...createInitialSoloRuntimeState(),
+        unlockedCards: [...STARTER_UNLOCKED_CARDS],
+        unlockedRelics: [...STARTER_UNLOCKED_RELICS]
+      },
+      currentNode: createNeowRoomNode({ copy: COPY }),
+      playerId: LOCAL_PLAYER_ID
+    }));
+    setGameState({
+      ...createInitialSoloRuntimeState(),
+      unlockedCards: [...STARTER_UNLOCKED_CARDS],
+      unlockedRelics: [...STARTER_UNLOCKED_RELICS]
+    });
+    setCurrentNode(createNeowRoomNode({ copy: COPY }));
+    setTitleView('heroes');
+  }, []);
+
+  const chooseCharacterForLobby = useCallback((characterKey) => {
+    const actionPayloads = [
+      createClientAction(CLIENT_ACTIONS.SELECT_CHARACTER, {
+        playerId: clientPlayerId,
+        characterKey
+      }),
+      createClientAction(CLIENT_ACTIONS.SET_READY, {
+        playerId: clientPlayerId,
+        ready: true
+      })
+    ];
+
+    if (isLocalNetworkClient) {
+      actionPayloads.forEach((action) => {
+        localPeerRef.current?.dispatchAction(action);
+      });
+      return;
+    }
+
+    setSessionState((prev) => actionPayloads.reduce(
+      (nextSession, action) => applyProtocolActionLocally(nextSession, action),
+      prev
+    ));
+  }, [applyProtocolActionLocally, clientPlayerId, isLocalNetworkClient]);
+
   const startRun = (char) => {
     const characterKey = Object.entries(CHARACTERS).find(([, value]) => value.name.en === char.name.en)?.[0];
     if (!characterKey || !metaProgress.unlockedCharacters.includes(characterKey)) return;
     const act = 1;
-    const content = generateProceduralRun(act);
-    const newRoute = generateMapRoute(content);
-    setGameState({
+    const runSeed = createRunSeed();
+    const content = buildRunContent(act, runSeed);
+    const newRoute = content.route;
+    commitRuntimeState({
+      ...createInitialSoloRuntimeState(),
+      runSeed,
       characterKey,
       character: char,
       unlockedCards: [...metaProgress.unlockedCards],
@@ -2446,10 +3182,11 @@ export default function App() {
       deck: [...char.deck],
       relics: [...char.relics],
       route: newRoute,
-      combat: null,
       runContent: content
+    }, createNeowRoomNode({ copy: COPY }), {
+      transformSession: (session) => applyDebugPartyMembers(session, characterKey)
     });
-    setCurrentNode(getNeowNode());
+    setCurrentNode(createNeowRoomNode({ copy: COPY }));
     setHoveredInfo(null);
     setEffect(null);
     setIsMazeMoving(false);
@@ -2457,20 +3194,152 @@ export default function App() {
     setTitleView('heroes');
   };
 
-  const handleChoice = useCallback((choice) => {
+  const startLocalNetworkRun = useCallback(() => {
+    if (!isLocalNetworkHost) return;
+    const hostLobbyPlayer = sessionState.lobby?.players?.[LOCAL_PLAYER_ID];
+    const guestLobbyPlayer = Object.values(sessionState.lobby?.players || {}).find((player) => player.playerId !== LOCAL_PLAYER_ID);
+    const hostCharacterKey = hostLobbyPlayer?.selectedCharacterKey;
+    const guestCharacterKey = guestLobbyPlayer?.selectedCharacterKey;
+    if (!hostCharacterKey || !guestCharacterKey) return;
+
+    const hostCharacter = CHARACTERS[hostCharacterKey];
+    const guestCharacter = CHARACTERS[guestCharacterKey];
+    if (!hostCharacter || !guestCharacter) return;
+
+    const act = 1;
+    const runSeed = createRunSeed();
+    const content = buildRunContent(act, runSeed);
+    const newRoute = content.route;
+    commitRuntimeState({
+      ...createInitialSoloRuntimeState(),
+      runSeed,
+      characterKey: hostCharacterKey,
+      character: hostCharacter,
+      unlockedCards: [...metaProgress.unlockedCards],
+      unlockedRelics: [...metaProgress.unlockedRelics],
+      hp: hostCharacter.hp,
+      maxHp: hostCharacter.hp,
+      gold: 99,
+      floor: 0,
+      act,
+      deck: [...hostCharacter.deck],
+      relics: [...hostCharacter.relics],
+      route: newRoute,
+      runContent: content
+    }, createNeowRoomNode({ copy: COPY }), {
+      transformSession: (session) => ({
+        ...session,
+        lobby: {
+          ...(session.lobby || {}),
+          players: {
+            ...(session.lobby?.players || {}),
+            [LOCAL_PLAYER_ID]: {
+              ...(session.lobby?.players?.[LOCAL_PLAYER_ID] || {}),
+              selectedCharacterKey: hostCharacterKey,
+              ready: true
+            },
+            [guestLobbyPlayer.playerId]: {
+              ...(session.lobby?.players?.[guestLobbyPlayer.playerId] || {}),
+              selectedCharacterKey: guestCharacterKey,
+              ready: true,
+              connected: true
+            }
+          },
+          readyPlayerIds: [LOCAL_PLAYER_ID, guestLobbyPlayer.playerId]
+        },
+        party: {
+          ...(session.party || {}),
+          order: [LOCAL_PLAYER_ID, guestLobbyPlayer.playerId],
+          players: {
+            ...(session.party?.players || {}),
+            [guestLobbyPlayer.playerId]: createPartyPlayerState({
+              playerId: guestLobbyPlayer.playerId,
+              name: guestLobbyPlayer.name || 'Guest Player',
+              characterKey: guestCharacterKey,
+              hp: guestCharacter.hp,
+              maxHp: guestCharacter.hp,
+              gold: 99,
+              deck: [...guestCharacter.deck],
+              relics: [...guestCharacter.relics],
+              unlocks: {
+                cards: [...metaProgress.unlockedCards],
+                relics: [...metaProgress.unlockedRelics]
+              }
+            })
+          }
+        }
+      })
+    });
+    setCurrentNode(createNeowRoomNode({ copy: COPY }));
+    setHoveredInfo(null);
+    setEffect(null);
+    setIsMazeMoving(false);
+    setTransitionMode('straight');
+    setTitleView('heroes');
+  }, [commitRuntimeState, isLocalNetworkHost, metaProgress.unlockedCards, metaProgress.unlockedRelics, sessionState.lobby?.players]);
+
+  const resolveCommittedChoice = useCallback((choiceId) => {
     if (isMazeMoving || isCombatResolving) return;
 
-    const result = choice.action(gameState);
+    const localRewardPreview = sessionState.reward?.perPlayer?.[clientPlayerId];
+    if (currentNode?.type === 'Reward' && localRewardPreview) {
+      if (getRewardChoiceResult(gameState, localRewardPreview, choiceId)) {
+        const rewardAction = createClientAction(CLIENT_ACTIONS.SELECT_REWARD, {
+          playerId: clientPlayerId,
+          roomId: currentNode.nodeId,
+          rewardId: choiceId
+        });
+        if (isLocalNetworkClient) {
+          setSessionState(prev => applyProtocolActionLocally(prev, rewardAction));
+          localPeerRef.current?.dispatchAction(rewardAction);
+          return;
+        }
+        let resolvedRewardPayload = null;
+        setSessionState(prev => {
+          const result = applyImmediateSessionAction(prev, rewardAction, currentNode);
+          resolvedRewardPayload = result.resolvedRewardPayload;
+          return result.nextSession;
+        });
+        setRewardTick((tick) => tick + 1);
+        if (resolvedRewardPayload) {
+          setPendingRewardResolution(resolvedRewardPayload);
+        }
+        return;
+      }
+    }
+
+    const result = resolveRoomChoice({
+      node: currentNode,
+      choiceId,
+      state: (() => {
+        if (currentNode?.type !== 'Reward' || !localRewardPreview) return gameState;
+        const previewDeck = localRewardPreview.options?.card ? [...gameState.deck, localRewardPreview.options.card] : gameState.deck;
+        const previewRelics = localRewardPreview.options?.relic ? appendRelicIfAvailable(gameState, localRewardPreview.options.relic) : gameState.relics;
+        return {
+          ...gameState,
+          deck: previewDeck,
+          relics: previewRelics
+        };
+      })(),
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'room-choice', currentNode?.nodeId || 'room', choiceId, gameState.floor, gameState.act)),
+      pickRewardCard: (state, tier) => localRewardPreview?.options?.card || pickRewardCard(state, tier),
+      pickRewardRelic: (state, tier) => localRewardPreview?.options?.relic || pickRewardRelic(state, tier),
+      appendRelicIfAvailable
+    });
     if (result.reset) {
-      setGameState(prev => ({ ...prev, character: null, characterKey: null }));
+      commitRuntimeState({
+        ...createInitialSoloRuntimeState(),
+        unlockedCards: [...gameState.unlockedCards],
+        unlockedRelics: [...gameState.unlockedRelics]
+      }, createNeowRoomNode({ copy: COPY }));
       setTitleView('heroes');
       return;
     }
 
     if (result.startNextAct) {
         const nextAct = gameState.act + 1;
-        const content = generateProceduralRun(nextAct);
-        const newRoute = generateMapRoute(content);
+        const content = buildRunContent(nextAct, gameState.runSeed);
+        const newRoute = content.route;
         
         const newState = {
             ...gameState,
@@ -2481,7 +3350,7 @@ export default function App() {
         };
         
         beginRoomTransition(() => {
-          setGameState(newState);
+          commitRuntimeState(newState, newRoute[0]);
           setCurrentNode(newRoute[0]); 
         });
         recordMetaProgress({ highestActCleared: gameState.act, highestGold: newState.gold });
@@ -2523,8 +3392,14 @@ export default function App() {
     if (newState.hp <= 0) {
       newState.hp = 0;
       newState.combat = null;
-      setGameState(newState);
-      setCurrentNode(getDeathNode());
+      const deathNode = createDeathRoomNode({ copy: COPY });
+      setCurrentNode(deathNode);
+      setSessionState(prev => applyRoomTerminalStateToSession({
+        session: prev,
+        nextNode: deathNode,
+        status: 'game_over',
+        result: newState
+      }));
       recordMetaProgress(statChanges);
       return;
     }
@@ -2533,50 +3408,51 @@ export default function App() {
     if (result.startCombat) {
       let enemyData = newState.runContent.allEnemies.find(e => e.id === result.startCombat);
       registerEnemyEncounter(enemyData);
-      newState.combat = {
-        active: true,
-        enemyId: result.startCombat,
-        enemyName: enemyData.names,
-        enemySprite: enemyData.spriteKey,
-        enemyHp: Math.max(1, enemyData.hp - (result.reduceHp || 0)),
-        enemyMaxHp: enemyData.hp,
-        playerBlock: result.bonusBlock || 0, 
-        enemyBlock: 0, 
-        playerStrength: 0, 
-        enemyStrength: result.bonusEnemyStr || 0,
-        enemyVuln: result.applyVuln || 0, 
-        enemyWeak: 0, 
-        playerVuln: 0, 
-        turn: 1,
-        drawPile: [...newState.deck].sort(() => Math.random() - 0.5),
-        discardPile: [], 
-        hand: [],
-        cardsPlayed: 0,
-        turnCardsPlayed: 0,
-        activePowers: {
-          demonForm: 0,
-          noxiousFumes: 0,
-          echoForm: 0,
-          blockEachTurn: 0,
-          drawEachTurn: 0
-        }
-      };
-
-      if (newState.relics.includes('Vajra')) newState.combat.playerStrength += 1;
-      if (newState.relics.includes('Anchor')) newState.combat.playerBlock += 10;
-      if (newState.relics.includes('Bag of Marbles')) newState.combat.enemyVuln += 1;
-      if (newState.relics.includes('Thread and Needle')) newState.combat.playerBlock += 4;
-      if (newState.relics.includes('Pure Water')) { newState.combat.playerBlock += 5; newState.combat.enemyWeak += 1; }
-      if (newState.relics.includes('Omen Forge')) { newState.combat.playerStrength += 2; newState.combat.playerVuln += 1; }
-
-      newState.combat.intent = enemyData.getAction(1, newState.combat);
-      drawCards(newState.combat, newState.relics.includes('Ring of the Snake') ? 5 : 3);
-      if (newState.relics.includes('Lantern')) drawCards(newState.combat, 1);
+      newState.combat = initializeCombatState({
+        state: newState,
+        result,
+        enemyData,
+        rng: createSeededRng(deriveSeed(newState.runSeed, 'combat-init', result.startCombat, newState.floor, newState.act))
+      });
     }
 
     if (result.stayOnFloor) {
-      setGameState(newState);
+      const nextStayNode = result.nextNode || currentNode;
       if (result.nextNode) setCurrentNode(result.nextNode);
+      if (result.startCombat) {
+        setSessionState(prev => {
+          const baseSession = applyRoomResultToSession({
+            session: prev,
+            result: newState,
+            nextNode: nextStayNode,
+            floor: newState.floor,
+            act: newState.act,
+            route: newState.route,
+            status: 'in_combat'
+          });
+          const enemyData = newState.runContent?.allEnemies?.find((enemy) => enemy.id === result.startCombat);
+          return {
+            ...baseSession,
+            combat: buildSessionCombatState({
+              session: baseSession,
+              runtimeState: newState,
+              currentNode: nextStayNode,
+              enemyData
+            }),
+            reward: null
+          };
+        });
+      } else {
+        setSessionState(prev => applyRoomResultToSession({
+          session: prev,
+          result: newState,
+          nextNode: nextStayNode,
+          floor: newState.floor,
+          act: newState.act,
+          route: newState.route,
+          status: nextStayNode?.type === 'Reward' ? 'reward' : 'in_room'
+        }));
+      }
       recordMetaProgress(statChanges);
       return;
     }
@@ -2586,9 +3462,9 @@ export default function App() {
     
     let nextNode;
     if (nextFloor === 11 || nextFloor === 21) {
-        nextNode = getActTransitionNode(newState.act);
+        nextNode = createActTransitionRoomNode(newState.act, { copy: COPY, localizeTemplate });
     } else if (nextFloor > 30) {
-        nextNode = getVictoryNode();
+        nextNode = createVictoryRoomNode({ copy: COPY });
         recordMetaProgress({ totalWins: 1, highestActCleared: newState.act, highestGold: newState.gold });
     } else {
         const floorInAct = ((nextFloor - 1) % 10) + 1;
@@ -2596,16 +3472,335 @@ export default function App() {
     }
 
     beginRoomTransition(() => {
-      setGameState(newState);
       setCurrentNode(nextNode);
+      setSessionState(prev => applyRoomResultToSession({
+        session: prev,
+        result: newState,
+        nextNode,
+        floor: nextFloor,
+        act: newState.act,
+        route: newState.route,
+        status: nextNode?.type === 'Victory' ? 'victory' : 'in_room'
+      }));
     });
     if (nextFloor <= 30) recordMetaProgress(statChanges);
-  }, [addRewardEffect, beginRoomTransition, gameState, isCombatResolving, isMazeMoving, lang, playSound, recordMetaProgress, registerEnemyEncounter]);
+  }, [addRewardEffect, beginRoomTransition, commitRuntimeState, currentNode, gameState, isCombatResolving, isMazeMoving, lang, playSound, recordMetaProgress, registerEnemyEncounter, sessionState.reward, applyImmediateSessionAction]);
+
+  const resolveRewardRoom = useCallback((resolvedRewardState) => {
+    if (!resolvedRewardState?.roomId) return;
+    if (resolvedRewardRoomRef.current === resolvedRewardState.roomId) return;
+    resolvedRewardRoomRef.current = resolvedRewardState.roomId;
+
+    const localRewardPreview = resolvedRewardState?.perPlayer?.[clientPlayerId];
+    const localChoiceId = localRewardPreview?.choice?.choiceId;
+    if (!localRewardPreview || !localChoiceId) return;
+
+    const rewardResult = getRewardChoiceResult(gameState, localRewardPreview, localChoiceId);
+    if (!rewardResult) return;
+
+    setEffect(null);
+    if (rewardResult.hp !== undefined && rewardResult.hp > gameState.hp) {
+      setEffect('heal');
+      addRewardEffect('heal', `+${rewardResult.hp - gameState.hp} HP`);
+      playSound('heal');
+    } else if (
+      (rewardResult.gold !== undefined && rewardResult.gold > gameState.gold) ||
+      (rewardResult.relics !== undefined && rewardResult.relics.length > gameState.relics.length) ||
+      (rewardResult.deck !== undefined && rewardResult.deck.length > gameState.deck.length)
+    ) {
+      setEffect('gain');
+    }
+
+    if (rewardResult.gold !== undefined && rewardResult.gold > gameState.gold) {
+      addRewardEffect('gold', `+${rewardResult.gold - gameState.gold} Gold`);
+      playSound('coin');
+    }
+    if (rewardResult.relics !== undefined && rewardResult.relics.length > gameState.relics.length) {
+      addRewardEffect('relic', '+ Relic');
+      playSound('relic');
+    }
+    if (rewardResult.deck !== undefined && rewardResult.deck.length > gameState.deck.length) {
+      addRewardEffect('card', '+ Card');
+      playSound('card');
+    }
+
+    const statChanges = {
+      totalCardsCollected: rewardResult.deck !== undefined && rewardResult.deck.length > gameState.deck.length ? (rewardResult.deck.length - gameState.deck.length) : 0,
+      totalRelicsCollected: rewardResult.relics !== undefined && rewardResult.relics.length > gameState.relics.length ? (rewardResult.relics.length - gameState.relics.length) : 0,
+      highestGold: rewardResult.gold !== undefined ? rewardResult.gold : gameState.gold
+    };
+
+    const newState = { ...gameState, ...rewardResult };
+    const nextFloor = newState.floor + 1;
+    newState.floor = nextFloor;
+
+    let nextNode;
+    if (nextFloor === 11 || nextFloor === 21) {
+      nextNode = createActTransitionRoomNode(newState.act, { copy: COPY, localizeTemplate });
+    } else if (nextFloor > 30) {
+      nextNode = createVictoryRoomNode({ copy: COPY });
+      recordMetaProgress({ totalWins: 1, highestActCleared: newState.act, highestGold: newState.gold });
+    } else {
+      const floorInAct = ((nextFloor - 1) % 10) + 1;
+      nextNode = newState.route[floorInAct - 1];
+    }
+
+    beginRoomTransition(() => {
+      setCurrentNode(nextNode);
+      setSessionState(prev => {
+        const authoritativeRewardState = prev.reward?.roomId === resolvedRewardState.roomId
+          ? prev.reward
+          : resolvedRewardState;
+        const nextPartyPlayers = Object.fromEntries(
+          (prev.party?.order || [])
+            .map((playerId) => {
+              const playerState = prev.party?.players?.[playerId];
+              const rewardPreview = authoritativeRewardState?.perPlayer?.[playerId];
+              const rewardChoiceId = rewardPreview?.choice?.choiceId;
+              if (!playerState || !rewardPreview || !rewardChoiceId) {
+                return [playerId, playerState];
+              }
+              return [playerId, applyRewardChoiceToPlayerState(playerState, rewardPreview, rewardChoiceId)];
+            })
+        );
+
+        return {
+          ...prev,
+          run: {
+            ...(prev.run || {}),
+            status: nextNode?.type === 'Victory' ? 'victory' : 'in_room',
+            act: newState.act,
+            floor: nextFloor,
+            route: [...(newState.route || [])],
+            currentRoom: nextNode
+          },
+          party: {
+            ...(prev.party || {}),
+            players: nextPartyPlayers
+          },
+          reward: null,
+          roomVote: null,
+          combat: null
+        };
+      });
+    });
+    if (nextFloor <= 30) recordMetaProgress(statChanges);
+    setTimeout(() => setEffect(null), 500);
+  }, [addRewardEffect, applyProtocolActionLocally, beginRoomTransition, currentNode, gameState, playSound, recordMetaProgress, sessionState.party]);
+
+  const handleChoice = useCallback((choiceId) => {
+    if (isMazeMoving || isCombatResolving) return;
+
+    const isSharedRoomVote = currentNode?.type !== 'Reward'
+      && currentNode?.type !== 'Game Over'
+      && currentNode?.type !== 'Victory'
+      && currentNode?.choices?.length > 0
+      && (sessionState.party?.order?.length || 0) > 1;
+
+    if (!isSharedRoomVote) {
+      resolveCommittedChoice(choiceId);
+      return;
+    }
+
+    if (isLocalNetworkClient) {
+      localPeerRef.current?.dispatchAction(createClientAction(CLIENT_ACTIONS.VOTE_ROOM_CHOICE, {
+        playerId: clientPlayerId,
+        roomId: currentNode.nodeId,
+        choiceId
+      }));
+      return;
+    }
+
+    setSessionState(prev => applyProtocolActionLocally(
+      prev,
+      createClientAction(CLIENT_ACTIONS.VOTE_ROOM_CHOICE, {
+        playerId: clientPlayerId,
+        roomId: currentNode.nodeId,
+        choiceId
+      })
+    ));
+  }, [applyProtocolActionLocally, clientPlayerId, currentNode, isCombatResolving, isLocalNetworkClient, isMazeMoving, resolveCommittedChoice, sessionState.party?.order]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient || isLocalNetworkActive) return;
+    const activeRoomVote = sessionState.roomVote;
+    if (!activeRoomVote || activeRoomVote.phase !== 'collecting_votes') return;
+    if (currentNode?.nodeId !== activeRoomVote.roomId) return;
+    if (!currentNode?.choices?.length) return;
+
+    const missingAllies = (sessionState.party?.order || []).filter((playerId) => {
+      if (playerId === clientPlayerId) return false;
+      const player = sessionState.party?.players?.[playerId];
+      return player?.connected !== false && !player?.skipped && !activeRoomVote.votes?.[playerId];
+    });
+
+    if (missingAllies.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      setSessionState(prev => {
+        let nextSession = prev;
+        missingAllies.forEach((playerId, index) => {
+          const availableChoices = currentNode.choices.filter((choice) => isChoiceAvailable(choice, gameState));
+          if (availableChoices.length === 0) return;
+          const rng = createSeededRng(deriveSeed(gameState.runSeed, 'debug-room-vote', activeRoomVote.roomId, playerId, index));
+          const chosen = availableChoices[Math.floor(rng.next() * availableChoices.length)] || availableChoices[0];
+          nextSession = applyRoomVoteToSession({
+            session: nextSession,
+            roomId: activeRoomVote.roomId,
+            choiceId: chosen.id,
+            playerId,
+            deadlineAt: activeRoomVote.deadlineAt
+          });
+        });
+        return nextSession;
+      });
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [currentNode, gameState, isLocalNetworkActive, isLocalNetworkClient, sessionState.party, sessionState.roomVote, gameState.runSeed]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient) return;
+    const activeRoomVote = sessionState.roomVote;
+    if (!activeRoomVote || activeRoomVote.phase !== 'collecting_votes') return;
+    if (currentNode?.nodeId !== activeRoomVote.roomId) return;
+    if (!currentNode?.choices?.length) return;
+    if (pendingRoomResolution?.roomId === activeRoomVote.roomId) return;
+
+    const availableChoices = currentNode.choices.filter((choice) => isChoiceAvailable(choice, gameState));
+    const resolution = getRoomVoteResolution({
+      session: sessionState,
+      roomId: activeRoomVote.roomId,
+      availableChoiceIds: availableChoices.map((choice) => choice.id),
+      runSeed: gameState.runSeed,
+      now: Date.now()
+    });
+
+    if (resolution.status === 'pending') {
+      const timer = window.setTimeout(() => {
+        setRoomVoteTick((tick) => tick + 1);
+      }, (resolution.waitMs || 0) + 10);
+      return () => window.clearTimeout(timer);
+    }
+    if (resolution.status !== 'resolved') return;
+
+    setSessionState(prev => finalizeRoomVoteInSession({
+      session: prev,
+      roomId: activeRoomVote.roomId,
+      finalChoiceId: resolution.finalChoiceId,
+      finalChoicePlayerId: resolution.finalChoicePlayerId
+    }));
+    setPendingRoomResolution({
+      roomId: activeRoomVote.roomId,
+      choiceId: resolution.finalChoiceId
+    });
+  }, [currentNode, gameState, isLocalNetworkClient, pendingRoomResolution, sessionState.party, sessionState.roomVote, gameState.runSeed, roomVoteTick]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient) return;
+    if (!pendingRoomResolution) return;
+    if (currentNode?.nodeId !== pendingRoomResolution.roomId) {
+      setPendingRoomResolution(null);
+      return;
+    }
+    resolveCommittedChoice(pendingRoomResolution.choiceId);
+    setPendingRoomResolution(null);
+  }, [currentNode, isLocalNetworkClient, pendingRoomResolution, resolveCommittedChoice]);
+
+  useEffect(() => {
+    const roomVote = sessionState.roomVote?.roomId === currentNode?.nodeId ? sessionState.roomVote : null;
+    if (!roomVote || roomVote.phase !== 'collecting_votes') return;
+    const timer = window.setInterval(() => {
+      setRoomVoteTick((tick) => tick + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [currentNode?.nodeId, sessionState.roomVote]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient) return;
+    const activeRewardState = currentNode?.type === 'Reward' && sessionState.reward?.roomId === currentNode?.nodeId
+      ? sessionState.reward
+      : null;
+    if (!activeRewardState || pendingRewardResolution?.roomId === activeRewardState.roomId) return;
+
+    const resolution = finalizeRewardState({
+      rewardState: activeRewardState,
+      eligiblePlayerIds: getEligibleRoomParticipants(sessionState),
+      getDefaultChoiceId: (rewardPreview) => getDeterministicRewardChoiceId(rewardPreview, currentNode),
+      now: Date.now()
+    });
+
+    if (resolution.status === 'pending') {
+      const timer = window.setTimeout(() => {
+        setRewardTick((tick) => tick + 1);
+      }, (resolution.waitMs || 0) + 10);
+      return () => window.clearTimeout(timer);
+    }
+    if (resolution.status !== 'resolved') return;
+
+    setSessionState(prev => ({
+      ...prev,
+      reward: resolution.rewardState
+    }));
+    setPendingRewardResolution({
+      roomId: activeRewardState.roomId,
+      rewardState: resolution.rewardState
+    });
+  }, [currentNode, isLocalNetworkClient, pendingRewardResolution, rewardTick, sessionState.party, sessionState.reward]);
+
+  useEffect(() => {
+    if (isLocalNetworkClient) return;
+    if (!pendingRewardResolution) return;
+    if (currentNode?.nodeId !== pendingRewardResolution.roomId) {
+      setPendingRewardResolution(null);
+      return;
+    }
+    resolveRewardRoom(pendingRewardResolution.rewardState);
+    setPendingRewardResolution(null);
+  }, [currentNode, isLocalNetworkClient, pendingRewardResolution, resolveRewardRoom]);
+
+  useEffect(() => {
+    const activeRewardState = currentNode?.type === 'Reward' && sessionState.reward?.roomId === currentNode?.nodeId
+      ? sessionState.reward
+      : null;
+    if (!activeRewardState) return;
+    const timer = window.setInterval(() => {
+      setRewardTick((tick) => tick + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [currentNode, sessionState.reward]);
 
   const playCardInCombat = async (cardName, cardIndex) => {
-    if (isMazeMoving || isCombatResolving) return;
-    const committedHoverPreview = getCombatPreviewForCard(gameState, cardName);
-    const committedIncomingPreview = getIntentPlayerPreview(gameState, committedHoverPreview ? {
+    if (isMazeMoving || isCombatResolving || !localCombatView || !localCombatPlayer) return;
+    const playCardAction = createClientAction(CLIENT_ACTIONS.PLAY_CARD, {
+      playerId: clientPlayerId,
+      combatId: sessionState.combat?.combatId,
+      cardIndex,
+      cardName,
+      targetId: localCombatView.enemyId
+    });
+    const protocolResult = validateProtocolActionLocally(playCardAction);
+    if (!protocolResult.accepted) {
+      console.warn('Rejected play card action', protocolResult.reason, playCardAction);
+      return;
+    }
+    if (isLocalNetworkClient) {
+      localPeerRef.current?.dispatchAction(playCardAction);
+      return;
+    }
+    const committedHoverPreview = computeCombatPreview({
+      gameState: {
+        ...gameState,
+        combat: localCombatView
+      },
+      cardName,
+      getCardDefinition,
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'combat-preview', cardName, cardIndex, localCombatView?.turn || 0))
+    });
+    const committedIncomingPreview = computeIntentPlayerPreview({
+      ...gameState,
+      combat: localCombatView
+    }, committedHoverPreview ? {
       playerHp: committedHoverPreview.playerHp,
       playerBlock: committedHoverPreview.playerBlock
     } : {});
@@ -2617,64 +3812,109 @@ export default function App() {
     setPlayedCardIndex(cardIndex);
     setHoveredCardIndex(null);
 
-    let s = { ...gameState, deck: [...gameState.deck], relics: [...gameState.relics] };
-    let c = {
-      ...s.combat,
-      hand: [...s.combat.hand],
-      drawPile: [...s.combat.drawPile],
-      discardPile: [...s.combat.discardPile],
-      activePowers: { ...(s.combat.activePowers || {}) }
-    };
-    s.combat = c;
-    let enemyData = s.runContent.allEnemies.find(e => e.id === c.enemyId);
-
-    const preEnemyHp = c.enemyHp;
-    const prePlayerBlock = c.playerBlock;
-    const prePlayerHp = s.hp;
-
-    // Player Phase
-    const penNibTriggers = s.relics.includes('Pen Nib') && (((c.cardsPlayed || 0) + 1) % 3 === 0);
-    const damageMultiplier = penNibTriggers ? 2 : 1;
-    c.cardsPlayed = (c.cardsPlayed || 0) + 1;
-    const cardDefinition = getCardDefinition(cardName);
-    const isPowerCard = cardDefinition?.type === 'Power';
-    const shouldEcho = (c.activePowers.echoForm || 0) > 0 && (c.turnCardsPlayed || 0) === 0;
-    c.turnCardsPlayed = (c.turnCardsPlayed || 0) + 1;
-
-    if (s.relics.includes('Cracked Core')) c.playerBlock += 2;
-    executeCard(cardName, s, c, {
-      damageMultiplier,
-      onDamage: (amount, hitIndex) => addRewardEffect('damage', `-${amount} HP`, { delay: hitIndex * 120 })
+    const enemyData = gameState.runContent.allEnemies.find((enemy) => enemy.id === localCombatView.enemyId);
+    const participantResolution = resolveCombatParticipantCardPlay({
+      playerState: {
+        characterKey: gameState.characterKey,
+        hp: gameState.hp,
+        maxHp: gameState.maxHp,
+        deck: [...(gameState.deck || [])],
+        relics: [...(gameState.relics || [])]
+      },
+      combatState: {
+        block: localCombatPlayer.block || 0,
+        strength: localCombatPlayer.strength || 0,
+        vuln: localCombatPlayer.vuln || 0,
+        weak: localCombatPlayer.weak || 0,
+        hand: [...(localCombatPlayer.hand || [])],
+        drawPile: [...(localCombatPlayer.drawPile || [])],
+        discardPile: [...(localCombatPlayer.discardPile || [])],
+        cardsPlayedThisCombat: localCombatPlayer.cardsPlayedThisCombat || 0,
+        cardsPlayedThisTurn: localCombatPlayer.cardsPlayedThisTurn || 0,
+        activePowers: { ...(localCombatPlayer.activePowers || {}) }
+      },
+      enemyState: {
+        enemyId: localCombatView.enemyId,
+        name: localCombatView.enemyName,
+        spriteKey: localCombatView.enemySprite,
+        hp: localCombatView.enemyHp,
+        maxHp: localCombatView.enemyMaxHp,
+        block: localCombatView.enemyBlock || 0,
+        strength: localCombatView.enemyStrength || 0,
+        vuln: localCombatView.enemyVuln || 0,
+        weak: localCombatView.enemyWeak || 0,
+        intent: localCombatView.intent || null
+      },
+      cardIndex,
+      getCardDefinition,
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'combat-turn', localCombatView.enemyId, localCombatView.turn, cardName, cardIndex))
     });
-    if (shouldEcho) {
-      executeCard(cardName, s, c, {
-        damageMultiplier,
-        onDamage: (amount, hitIndex) => addRewardEffect('damage', `-${amount} HP`, { delay: 180 + hitIndex * 120 })
-      });
+    if (!participantResolution) {
+      setLockedCombatPreview(null);
+      setIsCombatResolving(false);
+      setPlayedCardIndex(null);
+      return;
     }
+
+    const summary = {
+      playerDamageEvents: participantResolution.summary.totalDamage > 0 ? [participantResolution.summary.totalDamage] : [],
+      playerHealed: participantResolution.summary.healed || 0,
+      enemyDamageTaken: participantResolution.summary.totalDamage || 0,
+      enemyDamageDealt: 0,
+      playerPhaseAnimation: participantResolution.summary.totalDamage > 0 ? 'attack' : 'buff',
+      enemyPhaseAnimation: 'buff',
+      upkeepBlockGain: 0,
+      postCombatHeals: [],
+      outcome: participantResolution.enemyState.hp <= 0 ? 'victory' : 'continue'
+    };
+    const localCombatLog = [
+      ...(sessionState.combat?.log || []),
+      {
+        id: `local-${Date.now()}-${cardIndex}`,
+        text: `You: ${participantResolution.summary.playedCard || cardName}`
+      }
+    ];
+
+    summary.playerDamageEvents.forEach((amount, hitIndex) => {
+      addRewardEffect('damage', `-${amount} HP`, { delay: hitIndex * 120 });
+    });
     playSound('attack');
-    const [playedCard] = c.hand.splice(cardIndex, 1);
-    if (playedCard && !isPowerCard) {
-      c.discardPile.push(playedCard);
+    setPlayerAnim(summary.playerPhaseAnimation);
+
+    if (summary.playerPhaseAnimation === 'block') playSound('block');
+    if (summary.playerHealed > 0) {
+      addRewardEffect('heal', `+${summary.playerHealed} HP`);
+      playSound('heal');
     }
-    c.hand.forEach(h => { c.discardPile.push(h); });
-    c.hand = [];
-
-    const dealtDamage = c.enemyHp < preEnemyHp;
-    const gainedBlock = c.playerBlock > prePlayerBlock;
-    const healed = s.hp > prePlayerHp;
-
-    if (dealtDamage) setPlayerAnim('attack');
-    else if (gainedBlock) setPlayerAnim('block');
-    else setPlayerAnim('buff');
-
-    if (gainedBlock) playSound('block');
-    if (healed) { addRewardEffect('heal', `+${s.hp - prePlayerHp} HP`); playSound('heal'); }
 
     await new Promise(r => setTimeout(r, 250));
-    
-    setGameState({...s}); 
-    if (dealtDamage) {
+
+    setSessionState(prev => {
+      const nextSession = applyProtocolActionLocally(prev, playCardAction);
+      if (summary.outcome === 'victory') {
+        const rewardNode = createRewardRoomNode(enemyData, { copy: COPY, localizeTemplate });
+        setCurrentNode(rewardNode);
+        const updatedSession = applyCombatParticipantResolutionToSession({
+          session: nextSession,
+          participantResolution,
+          combatLog: localCombatLog
+        });
+        return applyCombatRewardTransitionToSession({
+          session: updatedSession,
+          rewardNode,
+          nextPartyPlayers: updatedSession.party.players,
+          runSeed: gameState.runSeed,
+          buildRewardState: buildSessionRewardState
+        });
+      }
+
+      return applyCombatParticipantResolutionToSession({
+        session: nextSession,
+        participantResolution,
+        combatLog: localCombatLog
+      });
+    });
+    if (summary.enemyDamageTaken > 0) {
         setEnemyAnim('hurt');
     }
     
@@ -2683,113 +3923,497 @@ export default function App() {
     setEnemyAnim('');
     setPlayedCardIndex(null);
 
-    // Check Victory
-    if (c.enemyHp <= 0) {
-      if (s.relics.includes('Burning Blood')) { s.hp = Math.min(s.maxHp, s.hp + 6); addRewardEffect('heal', '+6 HP (Relic)'); }
-      if (s.relics.includes('Meat on the Bone') && s.hp <= s.maxHp / 2) { s.hp = Math.min(s.maxHp, s.hp + 12); addRewardEffect('heal', '+12 HP (Relic)'); }
-      s.combat = null;
-      setGameState({...s});
-      setCurrentNode(getRewardNode(enemyData));
+    if (summary.outcome === 'victory') {
+      summary.postCombatHeals.forEach((heal) => addRewardEffect('heal', `+${heal.amount} HP (Relic)`));
       recordMetaProgress({
         totalCombatWins: 1,
         totalEnemiesDefeated: 1,
         totalEliteWins: enemyData?.tier === 'elite' ? 1 : 0,
         totalCardsPlayed: 1,
-        lowHpCombatSurvived: s.hp <= 10 ? 1 : 0,
-        highestGold: s.gold
+        lowHpCombatSurvived: participantResolution.playerState.hp <= 10 ? 1 : 0,
+        highestGold: gameState.gold
       });
       setLockedCombatPreview(null);
       setIsCombatResolving(false);
       return;
     }
+    recordMetaProgress({ totalCardsPlayed: 1, highestGold: gameState.gold });
+    setLockedCombatPreview(null);
+    setIsCombatResolving(false);
+  };
 
-    // Enemy Phase
-    const prePlayerHpEnemyTurn = s.hp;
-    
-    c.enemyBlock = 0; 
-    const preEnemyBlock = c.enemyBlock;
-    
+  const playAllyCardInCombat = async (playerId, cardIndex) => {
+    if (isMazeMoving || isCombatResolving || !localCombatView?.active) return;
+    const allyPlayer = sessionState.party?.players?.[playerId];
+    const allyCombat = sessionState.combat?.players?.[playerId];
+    const cardName = allyCombat?.hand?.[cardIndex];
+    if (!allyPlayer || !allyCombat || allyCombat.endedTurn || allyPlayer.hp <= 0 || !cardName) return;
+
+    const playCardAction = createClientAction(CLIENT_ACTIONS.PLAY_CARD, {
+      playerId,
+      combatId: sessionState.combat?.combatId,
+      cardIndex,
+      cardName,
+      targetId: localCombatView.enemyId
+    });
+    const protocolResult = validateProtocolActionLocally(playCardAction);
+    if (!protocolResult.accepted) {
+      console.warn('Rejected ally play card action', protocolResult.reason, playCardAction);
+      return;
+    }
+
+    setIsCombatResolving(true);
+    const enemyData = gameState.runContent.allEnemies.find((enemy) => enemy.id === localCombatView.enemyId);
+    const participantResolution = resolveCombatParticipantCardPlay({
+      playerState: {
+        characterKey: allyPlayer.characterKey,
+        hp: allyPlayer.hp,
+        maxHp: allyPlayer.maxHp,
+        deck: [...(allyPlayer.deck || [])],
+        relics: [...(allyPlayer.relics || [])]
+      },
+      combatState: {
+        block: allyCombat.block || 0,
+        strength: allyCombat.strength || 0,
+        vuln: allyCombat.vuln || 0,
+        weak: allyCombat.weak || 0,
+        hand: [...(allyCombat.hand || [])],
+        drawPile: [...(allyCombat.drawPile || [])],
+        discardPile: [...(allyCombat.discardPile || [])],
+        cardsPlayedThisCombat: allyCombat.cardsPlayedThisCombat || 0,
+        cardsPlayedThisTurn: allyCombat.cardsPlayedThisTurn || 0,
+        activePowers: { ...(allyCombat.activePowers || {}) }
+      },
+      enemyState: {
+        enemyId: localCombatView.enemyId,
+        name: localCombatView.enemyName,
+        spriteKey: localCombatView.enemySprite,
+        hp: localCombatView.enemyHp,
+        maxHp: localCombatView.enemyMaxHp,
+        block: localCombatView.enemyBlock || 0,
+        strength: localCombatView.enemyStrength || 0,
+        vuln: localCombatView.enemyVuln || 0,
+        weak: localCombatView.enemyWeak || 0,
+        intent: localCombatView.intent || null
+      },
+      cardIndex,
+      getCardDefinition,
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'combat-turn', localCombatView.enemyId, localCombatView.turn, playerId, cardName, cardIndex))
+    });
+
+    if (!participantResolution) {
+      setIsCombatResolving(false);
+      return;
+    }
+
+    const nextCombatPlayers = {
+      ...(sessionState.combat?.players || {}),
+      [playerId]: {
+        ...(sessionState.combat?.players?.[playerId] || {}),
+        hp: participantResolution.playerState.hp,
+        maxHp: participantResolution.playerState.maxHp,
+        block: participantResolution.combatState.block || 0,
+        strength: participantResolution.combatState.strength || 0,
+        vuln: participantResolution.combatState.vuln || 0,
+        weak: participantResolution.combatState.weak || 0,
+        hand: [...(participantResolution.combatState.hand || [])],
+        drawPile: [...(participantResolution.combatState.drawPile || [])],
+        discardPile: [...(participantResolution.combatState.discardPile || [])],
+        cardsPlayedThisCombat: participantResolution.combatState.cardsPlayedThisCombat || 0,
+        cardsPlayedThisTurn: participantResolution.combatState.cardsPlayedThisTurn || 0,
+        activePowers: { ...(participantResolution.combatState.activePowers || {}) },
+        endedTurn: Boolean(participantResolution.combatState.endedTurn)
+      }
+    };
+    const nextPartyPlayers = syncPartyPlayersFromCombatState({
+      ...(sessionState.party?.players || {}),
+      [playerId]: {
+        ...allyPlayer,
+        hp: participantResolution.playerState.hp
+      }
+    }, nextCombatPlayers);
+    const combatLog = [
+      ...(sessionState.combat?.log || []),
+      {
+        id: `${playerId}-play-${Date.now()}-${cardIndex}`,
+        text: `${allyPlayer.name}: ${participantResolution.summary.playedCard || cardName}`
+      }
+    ];
+
+    if (participantResolution.summary.totalDamage > 0) {
+      addRewardEffect('damage', `${allyPlayer.name} ${participantResolution.summary.totalDamage} Dmg`);
+      playSound('attack');
+    } else {
+      addRewardEffect('card', `${allyPlayer.name}: ${participantResolution.summary.playedCard || cardName}`);
+    }
+    if (participantResolution.summary.healed > 0) {
+      addRewardEffect('heal', `${allyPlayer.name} +${participantResolution.summary.healed} HP`);
+      playSound('heal');
+    }
+
+    setSessionState(prev => {
+      const nextSession = applyProtocolActionLocally(prev, playCardAction);
+      if (participantResolution.enemyState.hp <= 0) {
+        const rewardNode = createRewardRoomNode(enemyData, { copy: COPY, localizeTemplate });
+        setCurrentNode(rewardNode);
+        const updatedSession = applyCombatParticipantResolutionToSession({
+          session: nextSession,
+          participantResolution,
+          combatLog,
+          playerId
+        });
+        return applyCombatRewardTransitionToSession({
+          session: updatedSession,
+          rewardNode,
+          nextPartyPlayers: updatedSession.party.players,
+          runSeed: gameState.runSeed,
+          buildRewardState: buildSessionRewardState
+        });
+      }
+
+      return applyCombatParticipantResolutionToSession({
+        session: nextSession,
+        participantResolution,
+        combatLog,
+        playerId
+      });
+    });
+
+    if (participantResolution.summary.totalDamage > 0) {
+      setEnemyAnim('hurt');
+    }
+
+    await new Promise((r) => setTimeout(r, 350));
+    setEnemyAnim('');
+
+    if (participantResolution.enemyState.hp <= 0) {
+      recordMetaProgress({
+        totalCombatWins: 1,
+        totalEnemiesDefeated: 1,
+        totalEliteWins: enemyData?.tier === 'elite' ? 1 : 0,
+        highestGold: gameState.gold
+      });
+      setIsCombatResolving(false);
+      return;
+    }
+
+    if (!areCombatParticipantsReadyForEnemyPhase(sessionState.party?.order || [], nextPartyPlayers, nextCombatPlayers)) {
+      setIsCombatResolving(false);
+      return;
+    }
+
+    await resolveSharedEnemyPhase({
+      alliedEnemyState: participantResolution.enemyState,
+      alliedPartyPlayers: nextPartyPlayers,
+      alliedCombatPlayers: nextCombatPlayers,
+      combatLog,
+      combatView: localCombatView
+    });
+  };
+
+  const resolveSharedEnemyPhase = useCallback(async ({
+    alliedEnemyState,
+    alliedPartyPlayers,
+    alliedCombatPlayers,
+    combatLog,
+    combatView
+  }) => {
+    const localSharedCombat = alliedCombatPlayers[clientPlayerId] || {};
+    const scriptedState = {
+      ...gameState,
+      hp: alliedPartyPlayers?.[clientPlayerId]?.hp ?? gameState.hp,
+      combat: {
+        ...combatView,
+        enemyHp: alliedEnemyState.hp,
+        enemyBlock: alliedEnemyState.block || 0,
+        enemyStrength: alliedEnemyState.strength || 0,
+        enemyVuln: alliedEnemyState.vuln || 0,
+        enemyWeak: alliedEnemyState.weak || 0,
+        playerBlock: localSharedCombat?.block || 0,
+        playerStrength: localSharedCombat?.strength || 0,
+        playerVuln: localSharedCombat?.vuln || 0,
+        playerWeak: localSharedCombat?.weak || 0,
+        drawPile: [...(localSharedCombat?.drawPile || [])],
+        discardPile: [...(localSharedCombat?.discardPile || [])],
+        hand: [...(localSharedCombat?.hand || [])],
+        cardsPlayed: localSharedCombat?.cardsPlayedThisCombat || 0,
+        turnCardsPlayed: localSharedCombat?.cardsPlayedThisTurn || 0,
+        activePowers: { ...(localSharedCombat?.activePowers || {}) },
+        phase: 'player',
+        playerEndedTurn: true
+      }
+    };
+    const enemyData = gameState.runContent.allEnemies.find((enemy) => enemy.id === combatView.enemyId);
+
+    if (alliedEnemyState.hp <= 0) {
+      const rewardNode = createRewardRoomNode(enemyData, { copy: COPY, localizeTemplate });
+      setCurrentNode(rewardNode);
+      setSessionState(prev => applyCombatRewardTransitionToSession({
+        session: prev,
+        rewardNode,
+        nextPartyPlayers: syncPartyPlayersFromCombatState(alliedPartyPlayers, alliedCombatPlayers),
+        runSeed: gameState.runSeed,
+        buildRewardState: buildSessionRewardState
+      }));
+      recordMetaProgress({
+        totalCombatWins: 1,
+        totalEnemiesDefeated: 1,
+        totalEliteWins: enemyData?.tier === 'elite' ? 1 : 0,
+        highestGold: gameState.gold
+      });
+      setIsCombatResolving(false);
+      return;
+    }
+
+    const resolution = resolveCombatEnemyPhase({
+      gameState: scriptedState,
+      enemyData,
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'enemy-phase', combatView.enemyId, combatView.turn))
+    });
+
+    if (!resolution) {
+      setIsCombatResolving(false);
+      return;
+    }
+
+    const { state: s, summary } = resolution;
+
     playSound('enemyMove');
-    c.intent.execute(s, c);
-    
-    const enemyDealtDamage = s.hp < prePlayerHpEnemyTurn;
-    const enemyGainedBlock = c.enemyBlock > preEnemyBlock; 
-
-    if (enemyDealtDamage) setEnemyAnim('attack');
-    else if (enemyGainedBlock) setEnemyAnim('block');
-    else setEnemyAnim('buff');
+    setEnemyAnim(summary.enemyPhaseAnimation);
 
     await new Promise(r => setTimeout(r, 250));
-
-    setGameState({...s}); 
-    if (enemyDealtDamage) {
-        playSound('hurt');
-        setPlayerAnim('hurt');
-        setEffect('damage');
-        addRewardEffect('damage', `-${prePlayerHpEnemyTurn - s.hp}`);
-        setTimeout(() => setEffect(null), 300);
+    if (summary.enemyDamageDealt > 0) {
+      playSound('hurt');
+      setPlayerAnim('hurt');
+      setEffect('damage');
+      addRewardEffect('damage', `-${summary.enemyDamageDealt}`);
+      setTimeout(() => setEffect(null), 300);
     }
-    if (enemyGainedBlock) playSound('block');
+    if (summary.enemyPhaseAnimation === 'block') playSound('block');
 
     await new Promise(r => setTimeout(r, 400));
     setPlayerAnim('');
     setEnemyAnim('');
 
-    // Check Defeat
-    if (s.hp <= 0) {
-      s.hp = 0;
-      s.combat = null;
-      setGameState({...s});
-      setCurrentNode(getDeathNode());
-      recordMetaProgress({ totalCardsPlayed: 1, highestGold: s.gold });
-      setLockedCombatPreview(null);
+    if (summary.outcome === 'defeat') {
+      const deathNode = createDeathRoomNode({ copy: COPY });
+      setCurrentNode(deathNode);
+      setSessionState(prev => applyCombatDeathToSession({
+        session: prev,
+        deathNode,
+        nextPartyPlayers: {
+          ...syncPartyPlayersFromCombatState(alliedPartyPlayers, alliedCombatPlayers),
+          [clientPlayerId]: {
+            ...(prev.party?.players?.[clientPlayerId] || {}),
+            hp: 0
+          }
+        }
+      }));
+      recordMetaProgress({ highestGold: s.gold });
       setIsCombatResolving(false);
       return;
     }
 
-    // Upkeep Phase
-    const endedTurnWithoutBlock = c.playerBlock === 0;
-    c.playerBlock = 0;
-    if (s.relics.includes('Thread and Needle')) { c.playerBlock += 4; playSound('block'); }
-    if (endedTurnWithoutBlock && s.relics.includes('Orichalcum')) { c.playerBlock += 6; addRewardEffect('heal', '+6 Block'); playSound('block'); }
-    if (c.activePowers.demonForm > 0) c.playerStrength += c.activePowers.demonForm;
-    if (c.activePowers.noxiousFumes > 0) applyDamageToEnemy(c.activePowers.noxiousFumes, c);
-    if (c.activePowers.blockEachTurn > 0) { c.playerBlock += c.activePowers.blockEachTurn; playSound('block'); }
-    
-    if (c.enemyVuln > 0) c.enemyVuln--;
-    if (c.enemyWeak > 0) c.enemyWeak--;
-    if (c.playerVuln > 0) c.playerVuln--;
-    c.turn++;
-    c.turnCardsPlayed = 0;
-
-    if (c.enemyHp <= 0) {
-      if (s.relics.includes('Burning Blood')) { s.hp = Math.min(s.maxHp, s.hp + 6); addRewardEffect('heal', '+6 HP (Relic)'); }
-      if (s.relics.includes('Meat on the Bone') && s.hp <= s.maxHp / 2) { s.hp = Math.min(s.maxHp, s.hp + 12); addRewardEffect('heal', '+12 HP (Relic)'); }
-      s.combat = null;
-      setGameState({...s});
-      setCurrentNode(getRewardNode(enemyData));
+    if (summary.outcome === 'victory') {
+      summary.postCombatHeals.forEach((heal) => addRewardEffect('heal', `+${heal.amount} HP (Relic)`));
+      const rewardNode = createRewardRoomNode(enemyData, { copy: COPY, localizeTemplate });
+      setCurrentNode(rewardNode);
+      setSessionState(prev => applyCombatRewardTransitionToSession({
+        session: prev,
+        rewardNode,
+        nextPartyPlayers: {
+          ...syncPartyPlayersFromCombatState(alliedPartyPlayers, alliedCombatPlayers),
+          [clientPlayerId]: {
+            ...(prev.party?.players?.[clientPlayerId] || {}),
+            hp: s.hp
+          }
+        },
+        runSeed: gameState.runSeed,
+        buildRewardState: buildSessionRewardState
+      }));
       recordMetaProgress({
         totalCombatWins: 1,
         totalEnemiesDefeated: 1,
         totalEliteWins: enemyData?.tier === 'elite' ? 1 : 0,
-        totalCardsPlayed: 1,
         lowHpCombatSurvived: s.hp <= 10 ? 1 : 0,
         highestGold: s.gold
       });
-      setLockedCombatPreview(null);
       setIsCombatResolving(false);
       return;
     }
 
-    // Prepare Next Turn
-    c.intent = enemyData.getAction(c.turn, c);
-    drawCards(c, 3 + (c.activePowers.drawEachTurn || 0)); 
-
-    setGameState({...s});
-    recordMetaProgress({ totalCardsPlayed: 1, highestGold: s.gold });
-    setLockedCombatPreview(null);
+    if (summary.upkeepBlockGain > 0) {
+      addRewardEffect('heal', `+${summary.upkeepBlockGain} Block`);
+      playSound('block');
+    }
+    setSessionState(prev => applyEnemyPhaseToSession({
+      session: prev,
+      enemyPhaseState: s,
+      alliedPartyPlayers: syncPartyPlayersFromCombatState(alliedPartyPlayers, alliedCombatPlayers),
+      alliedCombatPlayers,
+      combatLog,
+      maxHp: gameState.maxHp
+    }));
+    recordMetaProgress({ highestGold: s.gold });
     setIsCombatResolving(false);
+  }, [addRewardEffect, gameState, playSound, recordMetaProgress]);
+
+  const endTurnInCombat = async () => {
+    if (isMazeMoving || isCombatResolving || !localCombatView?.active) return;
+    if (isLocalNetworkClient) {
+      localPeerRef.current?.dispatchAction(createClientAction(CLIENT_ACTIONS.END_TURN, {
+        playerId: clientPlayerId,
+        combatId: sessionState.combat?.combatId
+      }));
+      return;
+    }
+    setIsCombatResolving(true);
+    setHoveredCardIndex(null);
+    setLockedCombatPreview(null);
+
+    const currentCombatPlayers = sessionState.combat?.players || {};
+    const combatLog = [...(sessionState.combat?.log || [])];
+    const alliedEnemyState = {
+      enemyId: localCombatView.enemyId,
+      name: localCombatView.enemyName,
+      spriteKey: localCombatView.enemySprite,
+      hp: localCombatView.enemyHp,
+      maxHp: localCombatView.enemyMaxHp,
+      block: localCombatView.enemyBlock || 0,
+      strength: localCombatView.enemyStrength || 0,
+      vuln: localCombatView.enemyVuln || 0,
+      weak: localCombatView.enemyWeak || 0,
+      intent: localCombatView.intent || null
+    };
+    const alliedCombatPlayers = {
+      ...currentCombatPlayers,
+      [clientPlayerId]: {
+        ...(currentCombatPlayers[clientPlayerId] || {}),
+        endedTurn: true
+      }
+    };
+    const alliedPartyPlayers = syncPartyPlayersFromCombatState(sessionState.party?.players || {}, alliedCombatPlayers);
+    combatLog.push({
+      id: `local-end-${Date.now()}`,
+      text: 'You ended turn'
+    });
+
+    setSessionState(prev => {
+      const nextSession = applyProtocolActionLocally(
+        prev,
+        createClientAction(CLIENT_ACTIONS.END_TURN, {
+          playerId: clientPlayerId,
+          combatId: prev.combat?.combatId
+        })
+      );
+      return applyCombatEndedTurnToSession({
+        session: nextSession,
+        combatLog,
+        playerId: clientPlayerId
+      });
+    });
+
+    if (!areCombatParticipantsReadyForEnemyPhase(sessionState.party?.order || [], alliedPartyPlayers, alliedCombatPlayers)) {
+      setIsCombatResolving(false);
+      return;
+    }
+
+    await resolveSharedEnemyPhase({
+      alliedEnemyState,
+      alliedPartyPlayers,
+      alliedCombatPlayers,
+      combatLog,
+      combatView: localCombatView
+    });
   };
+
+  const endAllyTurn = useCallback(async (playerId) => {
+    if (isMazeMoving || isCombatResolving || !localCombatView?.active) return;
+    const allyPlayer = sessionState.party?.players?.[playerId];
+    const allyCombat = sessionState.combat?.players?.[playerId];
+    if (!allyPlayer || !allyCombat || allyCombat.endedTurn || allyPlayer.hp <= 0) return;
+
+    setIsCombatResolving(true);
+    const alliedEnemyState = {
+      enemyId: localCombatView.enemyId,
+      name: localCombatView.enemyName,
+      spriteKey: localCombatView.enemySprite,
+      hp: localCombatView.enemyHp,
+      maxHp: localCombatView.enemyMaxHp,
+      block: localCombatView.enemyBlock || 0,
+      strength: localCombatView.enemyStrength || 0,
+      vuln: localCombatView.enemyVuln || 0,
+      weak: localCombatView.enemyWeak || 0,
+      intent: localCombatView.intent || null
+    };
+    const nextCombatPlayers = {
+      ...(sessionState.combat?.players || {}),
+      [playerId]: {
+        ...allyCombat,
+        endedTurn: true
+      }
+    };
+    const nextPartyPlayers = syncPartyPlayersFromCombatState(sessionState.party?.players || {}, nextCombatPlayers);
+    const combatLog = [
+      ...(sessionState.combat?.log || []),
+      {
+        id: `${playerId}-end-${Date.now()}`,
+        text: `${allyPlayer.name}: ended turn`
+      }
+    ];
+
+    setSessionState(prev => {
+      const nextSession = applyProtocolActionLocally(
+        prev,
+        createClientAction(CLIENT_ACTIONS.END_ALLY_TURN, {
+          playerId,
+          combatId: prev.combat?.combatId
+        })
+      );
+      return applyCombatEndedTurnToSession({
+        session: nextSession,
+        combatLog,
+        playerId
+      });
+    });
+
+    if (!areCombatParticipantsReadyForEnemyPhase(sessionState.party?.order || [], nextPartyPlayers, nextCombatPlayers)) {
+      setIsCombatResolving(false);
+      return;
+    }
+
+    await resolveSharedEnemyPhase({
+      alliedEnemyState,
+      alliedPartyPlayers: nextPartyPlayers,
+      alliedCombatPlayers: nextCombatPlayers,
+      combatLog,
+      combatView: localCombatView
+    });
+  }, [applyProtocolActionLocally, isCombatResolving, isMazeMoving, resolveSharedEnemyPhase, sessionState.combat, sessionState.party]);
+
+  useEffect(() => {
+    if (!isLocalNetworkHost) return;
+    const action = pendingRemoteActionRef.current;
+    if (!action) return;
+    pendingRemoteActionRef.current = null;
+
+    if (action.type === CLIENT_ACTIONS.PLAY_CARD) {
+      if (action.playerId === clientPlayerId) {
+        playCardInCombat(action.cardName, action.cardIndex);
+      } else {
+        playAllyCardInCombat(action.playerId, action.cardIndex);
+      }
+      return;
+    }
+
+    if (action.type === CLIENT_ACTIONS.END_TURN || action.type === CLIENT_ACTIONS.END_ALLY_TURN) {
+      if (action.playerId === clientPlayerId) {
+        endTurnInCombat();
+      } else {
+        endAllyTurn(action.playerId);
+      }
+    }
+  }, [clientPlayerId, endAllyTurn, endTurnInCombat, isLocalNetworkHost, playAllyCardInCombat, playCardInCombat, remoteActionTick]);
 
   const renderRewardIcon = (type) => {
      if(type==='gold') return <Coins className="w-6 h-6 text-amber-300"/>;
@@ -2820,6 +4444,149 @@ export default function App() {
     ...entry,
     encountered: metaProgress.encounteredEnemies?.[entry.key] || null
   }));
+  const allyPartyPlayers = (clientState.party?.order || [])
+    .filter((playerId) => playerId !== clientPlayerId)
+    .map((playerId) => clientState.party.players?.[playerId])
+    .filter(Boolean);
+  const allyRewardPreviews = allyPartyPlayers
+    .map((player) => ({
+      player,
+      reward: clientState.reward?.perPlayer?.[player.playerId] || null
+    }))
+    .filter((entry) => entry.reward);
+  const allyCombatPlayers = allyPartyPlayers
+    .map((player) => ({
+      player,
+      combat: clientState.combat?.publicPlayers?.[player.playerId] || null
+    }))
+    .filter((entry) => entry.combat);
+  const allyCombatControls = allyPartyPlayers
+    .map((player) => ({
+      player,
+      combat: sessionState.combat?.players?.[player.playerId] || null
+    }))
+    .filter((entry) => entry.combat);
+  const combatLogEntries = clientState.combat?.log || [];
+  const localCombatPlayer = clientState.combat?.localPlayer || null;
+  const localCombatView = useMemo(() => {
+    if (!clientState.combat || !localCombatPlayer) {
+      return null;
+    }
+
+    return {
+      ...(gameState.combat || {}),
+      active: true,
+      enemyId: clientState.combat.enemy?.enemyId,
+      enemyName: clientState.combat.enemy?.name,
+      enemySprite: clientState.combat.enemy?.spriteKey,
+      enemyHp: clientState.combat.enemy?.hp,
+      enemyMaxHp: clientState.combat.enemy?.maxHp,
+      enemyBlock: clientState.combat.enemy?.block || 0,
+      enemyStrength: clientState.combat.enemy?.strength || 0,
+      enemyVuln: clientState.combat.enemy?.vuln || 0,
+      enemyWeak: clientState.combat.enemy?.weak || 0,
+      intent: clientState.combat.enemy?.intent || null,
+      playerBlock: localCombatPlayer.block || 0,
+      playerStrength: localCombatPlayer.strength || 0,
+      playerVuln: localCombatPlayer.vuln || 0,
+      playerWeak: localCombatPlayer.weak || 0,
+      turn: clientState.combat.turn || gameState.combat.turn,
+      drawPile: [...(localCombatPlayer.drawPile || [])],
+      discardPile: [...(localCombatPlayer.discardPile || [])],
+      hand: [...(localCombatPlayer.hand || [])],
+      cardsPlayed: localCombatPlayer.cardsPlayedThisCombat || 0,
+      turnCardsPlayed: localCombatPlayer.cardsPlayedThisTurn || 0,
+      activePowers: { ...(localCombatPlayer.activePowers || {}) },
+      phase: clientState.combat.phase || gameState.combat.phase || 'player',
+      playerEndedTurn: Boolean(localCombatPlayer.endedTurn)
+    };
+  }, [clientState.combat, gameState.combat, localCombatPlayer]);
+  const activeRoomVote = clientState.roomVote?.roomId === currentNode?.nodeId ? clientState.roomVote : null;
+  const roomVoteCounts = useMemo(() => (
+    Object.values(activeRoomVote?.votes || {}).reduce((acc, choiceId) => {
+      acc[choiceId] = (acc[choiceId] || 0) + 1;
+      return acc;
+    }, {})
+  ), [activeRoomVote]);
+  const roomVoteSecondsLeft = activeRoomVote
+    ? Math.max(0, Math.ceil(((activeRoomVote.deadlineAt || Date.now()) - Date.now()) / 1000))
+    : 0;
+  const activeRewardState = currentNode?.type === 'Reward' && clientState.reward?.roomId === currentNode?.nodeId
+    ? clientState.reward
+    : null;
+  const rewardSecondsLeft = activeRewardState
+    ? Math.max(0, Math.ceil(((activeRewardState.deadlineAt || Date.now()) - Date.now()) / 1000))
+    : 0;
+  useEffect(() => {
+    if (isLocalNetworkClient || isMazeMoving || isCombatResolving || !localCombatView?.active) return;
+    if (sessionState.run?.status !== 'in_combat' || sessionState.combat?.phase !== 'player') return;
+
+    const eligiblePlayers = (sessionState.party?.order || []).filter((playerId) => {
+      const partyPlayer = sessionState.party?.players?.[playerId];
+      const combatPlayer = sessionState.combat?.players?.[playerId];
+      return partyPlayer && combatPlayer && partyPlayer.connected !== false && !partyPlayer.skipped && partyPlayer.hp > 0 && !combatPlayer.downed;
+    });
+
+    const autoEndPlayerIds = eligiblePlayers.filter((playerId) => {
+      const combatPlayer = sessionState.combat?.players?.[playerId];
+      return combatPlayer && !combatPlayer.endedTurn && (combatPlayer.hand?.length || 0) === 0;
+    });
+
+    if (autoEndPlayerIds.length === 0) return;
+
+    const nextCombatPlayers = { ...(sessionState.combat?.players || {}) };
+    const combatLog = [...(sessionState.combat?.log || [])];
+    autoEndPlayerIds.forEach((playerId) => {
+      nextCombatPlayers[playerId] = {
+        ...(nextCombatPlayers[playerId] || {}),
+        endedTurn: true
+      };
+      combatLog.push({
+        id: `${playerId}-auto-end-${Date.now()}`,
+        text: `${sessionState.party?.players?.[playerId]?.name || playerId}: ended turn`
+      });
+    });
+    const nextPartyPlayers = syncPartyPlayersFromCombatState(sessionState.party?.players || {}, nextCombatPlayers);
+
+    setSessionState((prev) => (
+      autoEndPlayerIds.reduce((nextSession, playerId) => applyCombatEndedTurnToSession({
+        session: nextSession,
+        combatLog,
+        playerId
+      }), prev)
+    ));
+
+    if (!areCombatParticipantsReadyForEnemyPhase(sessionState.party?.order || [], nextPartyPlayers, nextCombatPlayers)) {
+      return;
+    }
+
+    setIsCombatResolving(true);
+    resolveSharedEnemyPhase({
+      alliedEnemyState: {
+        ...(sessionState.combat?.enemy || {}),
+        intent: localCombatView.intent || null
+      },
+      alliedPartyPlayers: nextPartyPlayers,
+      alliedCombatPlayers: nextCombatPlayers,
+      combatLog,
+      combatView: localCombatView
+    });
+  }, [isCombatResolving, isLocalNetworkClient, isMazeMoving, localCombatView, resolveSharedEnemyPhase, sessionState.combat, sessionState.party, sessionState.run?.status]);
+  const debugPartySummary = {
+    requested: debugPartySize,
+    actual: clientState.party?.order?.length || 0,
+    allyCount: allyPartyPlayers.length
+  };
+  const disconnectedAllies = allyPartyPlayers.filter((player) => !player.connected || player.skipped);
+  const localOnlineBanner = isLocalNetworkActive
+    ? (
+        localConnectionState.phase !== 'connected'
+          ? `${isLocalNetworkHost ? 'Host' : 'Guest'} connection ${localConnectionState.phase}`
+          : disconnectedAllies.length > 0
+            ? `${disconnectedAllies.length} player${disconnectedAllies.length === 1 ? '' : 's'} disconnected, run continues in skip mode`
+            : null
+      )
+    : null;
   const currentSlotSummary = slotSummaries[activeSlot];
   const setAudioSetting = (key, value) => {
     setMetaProgress(prev => ({
@@ -2854,8 +4621,12 @@ export default function App() {
   };
 
   const returnToTitle = useCallback(() => {
-    setGameState(prev => ({ ...prev, character: null, characterKey: null, combat: null }));
-    setCurrentNode(getNeowNode());
+    commitRuntimeState({
+      ...createInitialSoloRuntimeState(),
+      unlockedCards: [...gameState.unlockedCards],
+      unlockedRelics: [...gameState.unlockedRelics]
+    }, createNeowRoomNode({ copy: COPY }));
+    setCurrentNode(createNeowRoomNode({ copy: COPY }));
     setHoveredInfo(null);
     setEffect(null);
     setIsMazeMoving(false);
@@ -2868,19 +4639,30 @@ export default function App() {
     setIsInGameMenuOpen(false);
     setInGameMenuTab('options');
     setTitleView('heroes');
-  }, []);
+  }, [commitRuntimeState, gameState.unlockedCards, gameState.unlockedRelics]);
 
   const hoveredCardPreview = useMemo(() => {
-    if (!gameState.combat?.active || hoveredCardIndex == null) return null;
-    const hoveredCard = gameState.combat.hand?.[hoveredCardIndex];
-    return getCombatPreviewForCard(gameState, hoveredCard);
-  }, [gameState, hoveredCardIndex]);
+    if (!localCombatView?.active || hoveredCardIndex == null) return null;
+    const hoveredCard = localCombatView.hand?.[hoveredCardIndex];
+    return computeCombatPreview({
+      gameState: {
+        ...gameState,
+        combat: localCombatView
+      },
+      cardName: hoveredCard,
+      getCardDefinition,
+      rng: createSeededRng(deriveSeed(gameState.runSeed, 'combat-hover', hoveredCardIndex, hoveredCard || 'none', localCombatView?.turn || 0))
+    });
+  }, [gameState, hoveredCardIndex, localCombatView]);
   const enemyIntentPreview = useMemo(() => (
-    getIntentPlayerPreview(gameState, hoveredCardPreview ? {
+    computeIntentPlayerPreview({
+      ...gameState,
+      combat: localCombatView
+    }, hoveredCardPreview ? {
       playerHp: hoveredCardPreview.playerHp,
       playerBlock: hoveredCardPreview.playerBlock
     } : {})
-  ), [gameState, hoveredCardPreview]);
+  ), [gameState, hoveredCardPreview, localCombatView]);
   const displayedHoverPreview = lockedCombatPreview?.hovered ?? hoveredCardPreview;
   const displayedEnemyIntentPreview = lockedCombatPreview?.incoming ?? enemyIntentPreview;
 
@@ -2921,6 +4703,10 @@ export default function App() {
           >
             {metaProgress.settings.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
+        </div>
+
+        <div className="absolute bottom-4 right-4 z-50 rounded border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-300">
+          {BUILD_MARKER}
         </div>
 
         <div className="relative z-20 w-full flex flex-col items-center">
@@ -2966,6 +4752,103 @@ export default function App() {
             ))}
           </div>
 
+          <div className="mb-6 w-full max-w-3xl rounded-2xl border border-slate-700 bg-slate-900/85 p-4 animate-slide-fade">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.25em] text-slate-500 mb-1">Local Online Test</div>
+                <div className="text-sm text-slate-300">
+                  {isLocalNetworkActive
+                    ? `${isLocalNetworkHost ? 'Hosting' : 'Joined'} as ${clientPlayerId}`
+                    : 'Offline mode'}
+                </div>
+                {isLocalNetworkActive && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Transport</span>
+                    <span className="rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 font-mono text-slate-200">
+                      {localConnectionState.transport}
+                    </span>
+                    <span className="uppercase tracking-[0.2em] text-slate-500">Status</span>
+                    <span className={`rounded-lg border px-2 py-1 font-mono ${
+                      localConnectionState.phase === 'connected'
+                        ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200'
+                        : localConnectionState.phase === 'connecting' || localConnectionState.phase === 'signaling'
+                          ? 'border-amber-500/40 bg-amber-950/30 text-amber-200'
+                          : 'border-slate-700 bg-slate-950/60 text-slate-300'
+                    }`}>
+                      {localConnectionState.phase}
+                    </span>
+                  </div>
+                )}
+                {isLocalNetworkActive && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Room Code</span>
+                    <span className="rounded-lg border border-emerald-500/40 bg-emerald-950/30 px-3 py-1 font-mono text-base font-bold tracking-[0.2em] text-emerald-200">
+                      {localRoomId}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!isLocalNetworkActive && (
+                  <>
+                    <button
+                      onClick={hostLocalRoom}
+                      className="px-3 py-2 rounded-xl border border-emerald-500/40 bg-emerald-950/40 text-emerald-200 font-bold text-sm"
+                    >
+                      Host Local Room
+                    </button>
+                    <button
+                      onClick={joinLocalRoom}
+                      className="px-3 py-2 rounded-xl border border-sky-500/40 bg-sky-950/40 text-sky-200 font-bold text-sm"
+                    >
+                      Join Local Room
+                    </button>
+                  </>
+                )}
+                {isLocalNetworkActive && (
+                  <button
+                    onClick={reconnectLocalRoom}
+                    className="px-3 py-2 rounded-xl border border-sky-500/40 bg-sky-950/40 text-sky-200 font-bold text-sm"
+                  >
+                    {isLocalNetworkHost ? 'Resync' : 'Reconnect'}
+                  </button>
+                )}
+                {isLocalNetworkActive && (
+                  <button
+                    onClick={leaveLocalRoom}
+                    className="px-3 py-2 rounded-xl border border-red-500/40 bg-red-950/40 text-red-200 font-bold text-sm"
+                  >
+                    Leave Room
+                  </button>
+                )}
+                {isLocalNetworkHost && Object.values(sessionState.lobby?.players || {}).filter((player) => player.ready && player.connected !== false).length >= 2 && (
+                  <button
+                    onClick={startLocalNetworkRun}
+                    className="px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-950/40 text-amber-200 font-bold text-sm"
+                  >
+                    Start Local Run
+                  </button>
+                )}
+              </div>
+            </div>
+            {isLocalNetworkActive && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {Object.values(sessionState.lobby?.players || {}).map((player) => (
+                  <div key={player.playerId} className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-slate-300">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-slate-100">{player.name || player.playerId}</div>
+                      <span className={`text-[10px] uppercase tracking-[0.2em] ${player.connected !== false ? 'text-emerald-300' : 'text-amber-300'}`}>
+                        {player.connected !== false ? 'connected' : 'disconnected'}
+                      </span>
+                    </div>
+                    <div>Character: {player.selectedCharacterKey || 'pending'}</div>
+                    <div>Status: {player.ready ? 'ready' : 'not ready'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {titleView === 'heroes' && (
             <div className="flex flex-wrap gap-4 md:gap-6 justify-center max-w-6xl animate-slide-fade">
               {Object.entries(CHARACTERS).map(([key, char]) => {
@@ -2974,7 +4857,14 @@ export default function App() {
                 return (
                   <button 
                     key={key} 
-                    onClick={() => isUnlocked && startRun(char)} 
+                    onClick={() => {
+                      if (!isUnlocked) return;
+                      if (isLocalNetworkActive) {
+                        chooseCharacterForLobby(key);
+                        return;
+                      }
+                      startRun(char);
+                    }} 
                     disabled={!isUnlocked}
                     className={`p-4 md:p-6 rounded-2xl flex flex-col items-center gap-3 md:gap-4 transition-all duration-300 w-full max-w-[17rem] md:w-64 group ${
                       isUnlocked
@@ -3368,6 +5258,22 @@ export default function App() {
       {/* Top-right controls for active game */}
       <div className="absolute top-3 right-3 md:top-4 md:right-4 z-[300] flex items-center gap-2">
           <button
+            onClick={() => setDebugPartySize((prev) => (prev >= 4 ? 1 : prev + 1))}
+            title={`Debug party size: ${debugPartySize}`}
+            className={`h-10 px-3 rounded border transition-colors flex items-center justify-center text-xs font-bold ${
+              debugPartySize > 1
+                ? 'border-emerald-500/40 bg-emerald-950/60 text-emerald-100'
+                : 'border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-400'
+            }`}
+          >
+            P{debugPartySize}
+          </button>
+          {debugPartySize > 1 && (
+            <div className="h-10 px-3 rounded border border-emerald-500/40 bg-emerald-950/50 text-emerald-100 flex items-center text-[11px] font-bold tracking-wide">
+              PARTY {debugPartySummary.actual}/{debugPartySummary.requested}
+            </div>
+          )}
+          <button
             onClick={cycleLanguage}
             title={`Language: ${lang.toUpperCase()}`}
             className="h-10 px-3 rounded border border-slate-700 bg-slate-900/80 text-slate-200 hover:border-slate-400 transition-colors flex items-center gap-2 text-xs font-bold"
@@ -3523,6 +5429,15 @@ export default function App() {
 
       {/* LEFT SIDEBAR - STATS & INVENTORY */}
       <div className="relative w-full md:w-80 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-700 p-4 md:p-6 flex flex-col gap-4 md:gap-6 shadow-2xl z-[150] max-h-[40vh] md:max-h-none overflow-y-auto">
+        {localOnlineBanner && (
+          <div className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+            localConnectionState.phase !== 'connected'
+              ? 'border-amber-500/40 bg-amber-950/30 text-amber-200'
+              : 'border-sky-500/40 bg-sky-950/30 text-sky-200'
+          }`}>
+            {localOnlineBanner}
+          </div>
+        )}
         <div className="text-center pb-4 border-b border-slate-700">
           <h1 className={`text-2xl font-bold ${gameState.character.color} tracking-wider uppercase mb-1`}>{gameState.character.name[lang]}</h1>
           <p className="text-sm text-slate-400 flex items-center justify-center gap-1">
@@ -3542,6 +5457,205 @@ export default function App() {
             <span className="text-lg font-bold">{gameState.gold}</span>
           </div>
         </div>
+
+        {allyPartyPlayers.length > 0 && (
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Party ({clientState.party?.order?.length || 1})
+            </div>
+            <div className="flex flex-col gap-2">
+              {allyPartyPlayers.map((player) => {
+                const allyCharacter = CHARACTERS[player.characterKey];
+                return (
+                  <div key={player.playerId} className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-slate-100 truncate">{player.name}</div>
+                        <div className="text-xs text-slate-400 truncate">
+                          {allyCharacter?.name?.[lang] || allyCharacter?.name?.en || player.characterKey}
+                        </div>
+                      </div>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider ${player.connected ? 'text-emerald-300' : 'text-amber-300'}`}>
+                        {player.connected ? 'Online' : 'Disconnected'}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-300">
+                      <span>HP {player.hp}/{player.maxHp}</span>
+                      <span>{player.skipped ? 'Skip active' : `Gold ${player.gold}`}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {debugPartySize > 1 && allyPartyPlayers.length === 0 && (
+          <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-3 text-xs text-red-200">
+            Debug party requested: {debugPartySummary.requested}. Session party size: {debugPartySummary.actual}. Ally entries visible: {debugPartySummary.allyCount}.
+          </div>
+        )}
+
+        {currentNode?.type === 'Reward' && allyRewardPreviews.length > 0 && (
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Party Rewards
+              </div>
+              {activeRewardState && (
+                <div className="text-[11px] font-mono text-emerald-300">
+                  {rewardSecondsLeft}s
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              {allyRewardPreviews.map(({ player, reward }) => {
+                const rewardCard = reward.options?.card
+                  ? getTranslatedCard(reward.options.card, lang)
+                  : (reward.options?.hasCard ? { name: 'Hidden' } : null);
+                const rewardRelic = reward.options?.relic
+                  ? getTranslatedRelic(reward.options.relic, lang)
+                  : (reward.options?.hasRelic ? { name: 'Hidden' } : null);
+                return (
+                  <div key={player.playerId} className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-bold text-sm text-slate-100 truncate">{player.name}</div>
+                      <div className={`text-[10px] uppercase tracking-widest ${!player.connected || player.skipped ? 'text-slate-400' : reward.choice?.choiceId ? 'text-emerald-300' : 'text-amber-300'}`}>
+                        {!player.connected || player.skipped ? 'skipped' : reward.choice?.choiceId || 'pending'}
+                      </div>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs text-slate-300">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">Gold</span>
+                        <span>+{reward.options?.gold || 0}</span>
+                      </div>
+                      {rewardCard && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-400">Card</span>
+                          <span className="truncate text-right">{rewardCard.name}</span>
+                        </div>
+                      )}
+                      {rewardRelic ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-400">Relic</span>
+                          <span className="truncate text-right">{rewardRelic.name}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-400">Recovery</span>
+                          <span>+{reward.options?.heal || 0} HP</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {localCombatView?.active && allyCombatPlayers.length > 0 && (
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Party Combat
+            </div>
+            <div className="flex flex-col gap-2">
+              {allyCombatPlayers.map(({ player, combat }) => {
+                const allyCharacter = CHARACTERS[player.characterKey];
+                const allyControls = allyCombatControls.find((entry) => entry.player.playerId === player.playerId)?.combat;
+                const statuses = [
+                  combat.strength > 0 ? `STR ${combat.strength}` : null,
+                  combat.vuln > 0 ? `VUL ${combat.vuln}` : null,
+                  combat.weak > 0 ? `WEAK ${combat.weak}` : null
+                ].filter(Boolean);
+                return (
+                  <div key={player.playerId} className="rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-bold text-sm text-slate-100 truncate">{player.name}</div>
+                        <div className="text-xs text-slate-400 truncate">
+                          {allyCharacter?.name?.[lang] || allyCharacter?.name?.en || player.characterKey}
+                        </div>
+                      </div>
+                      <div className={`text-[10px] font-bold uppercase tracking-wider ${!player.connected || player.skipped ? 'text-slate-400' : combat.endedTurn ? 'text-emerald-300' : 'text-amber-300'}`}>
+                        {!player.connected || player.skipped ? 'Skipped' : combat.endedTurn ? 'Ended' : 'Active'}
+                      </div>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs text-slate-300">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>HP {player.hp}/{player.maxHp}</span>
+                        <span>Block {combat.block || 0}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span>Hand {combat.handCount || 0}</span>
+                        <span>Draw {combat.drawCount || 0}</span>
+                      </div>
+                      {localCombatView?.phase === 'player' && !isLocalNetworkActive && (
+                        <>
+                          {allyControls?.hand?.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {allyControls.hand.map((cardName, cardIndex) => {
+                                const allyCard = getTranslatedCard(cardName, lang);
+                                return (
+                                  <button
+                                    key={`${player.playerId}-${cardIndex}-${cardName}`}
+                                    onClick={() => playAllyCardInCombat(player.playerId, cardIndex)}
+                                    disabled={isCombatResolving || combat.endedTurn}
+                                    className={`px-2 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                                      isCombatResolving || combat.endedTurn
+                                        ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                                        : 'bg-sky-950/60 border-sky-500/40 text-sky-200 hover:bg-sky-900/60'
+                                    }`}
+                                    title={allyCard.desc}
+                                  >
+                                    {allyCard.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              onClick={() => endAllyTurn(player.playerId)}
+                              disabled={isCombatResolving || combat.endedTurn || !player.connected || player.skipped}
+                              className={`px-2 py-1 rounded border text-[11px] font-bold transition-colors ${
+                                isCombatResolving || combat.endedTurn || !player.connected || player.skipped
+                                  ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                                  : 'bg-amber-950/50 border-amber-500/40 text-amber-200 hover:bg-amber-900/60'
+                              }`}
+                            >
+                              End Ally
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {statuses.length > 0 && (
+                        <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                          {statuses.join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {localCombatView?.active && combatLogEntries.length > 0 && (
+          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Combat Log
+            </div>
+            <div className="flex flex-col gap-1 text-xs text-slate-300">
+              {combatLogEntries.slice(-4).reverse().map((entry) => (
+                <div key={entry.id} className="rounded-md border border-slate-800 bg-slate-900/70 px-2 py-1">
+                  {entry.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0">
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -3624,17 +5738,17 @@ export default function App() {
         {currentNode?.spriteKey && (
           <div className={`absolute top-[2vh] md:top-[4vh] left-1/2 -translate-x-1/2 z-10 transition-opacity duration-500 pointer-events-none ${isMazeMoving ? 'opacity-0' : 'opacity-100'}`}>
             <div className={`drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] ${enemyAnim === 'attack' ? 'anim-enemy-attack' : enemyAnim === 'hurt' ? 'anim-sprite-hurt' : enemyAnim === 'block' ? 'anim-sprite-block' : enemyAnim === 'buff' ? 'anim-sprite-buff' : 'animate-float-delayed'}`}>
-               <PixelSprite spriteKey={gameState.combat?.active ? gameState.combat.enemySprite : currentNode.spriteKey} className={getEnemySizeClass(currentNode.type)} />
+               <PixelSprite spriteKey={localCombatView?.active ? localCombatView.enemySprite : currentNode.spriteKey} className={getEnemySizeClass(currentNode.type)} />
             </div>
           </div>
         )}
 
         {/* MAIN UI CARD */}
-        <div className={`relative z-20 w-[calc(100%-1rem)] ${gameState.combat?.active ? 'max-w-xl mt-[18vh] md:mt-[29vh] mb-6 flex-none rounded-2xl' : 'max-w-2xl mt-[17vh] md:mt-[26vh] mb-0 md:mb-4 rounded-t-2xl md:rounded-2xl flex flex-col flex-1 max-h-[74vh] md:max-h-[85vh]'} bg-slate-900/90 backdrop-blur-md border border-slate-700/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all ${isMazeMoving ? 'opacity-0 translate-y-24 scale-95 pointer-events-none duration-500' : 'animate-room-enter'} ${effect === 'damage' ? 'animate-shake border-red-500/70 shadow-red-900/50' : ''} ${effect === 'heal' ? 'border-green-500/70 shadow-green-900/50' : ''} ${effect === 'gain' ? 'border-yellow-500/70 shadow-yellow-900/50' : ''}`}>
+        <div className={`relative z-20 w-[calc(100%-1rem)] ${localCombatView?.active ? 'max-w-xl mt-[18vh] md:mt-[29vh] mb-6 flex-none rounded-2xl' : 'max-w-2xl mt-[17vh] md:mt-[26vh] mb-0 md:mb-4 rounded-t-2xl md:rounded-2xl flex flex-col flex-1 max-h-[74vh] md:max-h-[85vh]'} bg-slate-900/90 backdrop-blur-md border border-slate-700/80 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all ${isMazeMoving ? 'opacity-0 translate-y-24 scale-95 pointer-events-none duration-500' : 'animate-room-enter'} ${effect === 'damage' ? 'animate-shake border-red-500/70 shadow-red-900/50' : ''} ${effect === 'heal' ? 'border-green-500/70 shadow-green-900/50' : ''} ${effect === 'gain' ? 'border-yellow-500/70 shadow-yellow-900/50' : ''}`}>
           
           <div className="absolute inset-0 opacity-5 mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='uiNoise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23uiNoise)'/%3E%3C/svg%3E")` }}></div>
 
-          {gameState.combat?.active ? (
+          {localCombatView?.active ? (
             
             /* --- COMBAT ARENA UI --- */
             <div className="relative z-10">
@@ -3642,23 +5756,23 @@ export default function App() {
                 <div className="px-5 py-5 md:px-6 md:py-6">
                   <CombatVitals
                     sectionLabel={currentNode.type}
-                    title={gameState.combat.enemyName[lang] || gameState.combat.enemyName.en}
-                    hp={gameState.combat.enemyHp}
-                    maxHp={gameState.combat.enemyMaxHp}
-                    block={gameState.combat.enemyBlock}
+                    title={localCombatView.enemyName[lang] || localCombatView.enemyName.en}
+                    hp={localCombatView.enemyHp}
+                    maxHp={localCombatView.enemyMaxHp}
+                    block={localCombatView.enemyBlock}
                     blockLabel={UI.block[lang]}
                     previewHp={displayedHoverPreview?.enemyHp}
                     previewBlock={displayedHoverPreview?.enemyBlock}
                     subline={
                       <span className="text-yellow-300 animate-pulse font-mono bg-yellow-900/20 px-3 py-1.5 rounded-full border border-yellow-700/50 inline-flex items-center gap-2">
-                        {gameState.combat.intent?.type === 'attack' ? <AttackIcon className="w-4 h-4" /> : gameState.combat.intent?.type === 'defend' ? <Shield className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
-                        <span>{UI.intent[lang]}: {renderTextWithIcons(gameState.combat.intent.text[lang] || gameState.combat.intent.text.en)}</span>
+                        {localCombatView.intent?.type === 'attack' ? <AttackIcon className="w-4 h-4" /> : localCombatView.intent?.type === 'defend' ? <Shield className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
+                        <span>{UI.intent[lang]}: {renderTextWithIcons(localCombatView.intent.text[lang] || localCombatView.intent.text.en)}</span>
                       </span>
                     }
                     statuses={[
-                      gameState.combat.enemyStrength > 0 && <span key="enemy-str" className="text-orange-400 text-xs px-2 py-1 bg-orange-950/50 rounded border border-orange-900 drop-shadow inline-flex items-center gap-1"><Flame className="w-3 h-3" />+{gameState.combat.enemyStrength} {UI.str[lang]}</span>,
-                      gameState.combat.enemyVuln > 0 && <span key="enemy-vuln" className="text-purple-400 text-xs px-2 py-1 bg-purple-950/50 rounded border border-purple-900 drop-shadow inline-flex items-center gap-1"><Eye className="w-3 h-3" />{gameState.combat.enemyVuln} {UI.vuln[lang]}</span>,
-                      gameState.combat.enemyWeak > 0 && <span key="enemy-weak" className="text-blue-400 text-xs px-2 py-1 bg-blue-950/50 rounded border border-blue-900 drop-shadow inline-flex items-center gap-1"><Wind className="w-3 h-3" />{gameState.combat.enemyWeak} {UI.weak[lang]}</span>
+                      localCombatView.enemyStrength > 0 && <span key="enemy-str" className="text-orange-400 text-xs px-2 py-1 bg-orange-950/50 rounded border border-orange-900 drop-shadow inline-flex items-center gap-1"><Flame className="w-3 h-3" />+{localCombatView.enemyStrength} {UI.str[lang]}</span>,
+                      localCombatView.enemyVuln > 0 && <span key="enemy-vuln" className="text-purple-400 text-xs px-2 py-1 bg-purple-950/50 rounded border border-purple-900 drop-shadow inline-flex items-center gap-1"><Eye className="w-3 h-3" />{localCombatView.enemyVuln} {UI.vuln[lang]}</span>,
+                      localCombatView.enemyWeak > 0 && <span key="enemy-weak" className="text-blue-400 text-xs px-2 py-1 bg-blue-950/50 rounded border border-blue-900 drop-shadow inline-flex items-center gap-1"><Wind className="w-3 h-3" />{localCombatView.enemyWeak} {UI.weak[lang]}</span>
                     ].filter(Boolean)}
                   />
                 </div>
@@ -3669,7 +5783,7 @@ export default function App() {
                     title={gameState.character?.name?.[lang] || gameState.character?.name?.en || UI.combat_status[lang]}
                     hp={gameState.hp}
                     maxHp={gameState.maxHp}
-                    block={gameState.combat.playerBlock}
+                    block={localCombatView.playerBlock}
                     blockLabel={UI.block[lang]}
                     align="right"
                     previewHp={displayedHoverPreview?.playerHp}
@@ -3677,14 +5791,14 @@ export default function App() {
                     incomingHp={displayedEnemyIntentPreview?.playerHp}
                     incomingBlock={displayedEnemyIntentPreview?.playerBlock}
                     statuses={[
-                      gameState.combat.playerStrength > 0 && <span key="player-str" className="text-orange-400 text-xs px-2 py-1 bg-orange-950/50 rounded border border-orange-900 drop-shadow inline-flex items-center gap-1"><Flame className="w-3 h-3" />+{gameState.combat.playerStrength} {UI.str[lang]}</span>,
-                      gameState.combat.playerVuln > 0 && <span key="player-vuln" className="text-purple-400 text-xs px-2 py-1 bg-purple-950/50 rounded border border-purple-900 drop-shadow inline-flex items-center gap-1"><Eye className="w-3 h-3" />{gameState.combat.playerVuln} {UI.vuln[lang]}</span>
+                      localCombatView.playerStrength > 0 && <span key="player-str" className="text-orange-400 text-xs px-2 py-1 bg-orange-950/50 rounded border border-orange-900 drop-shadow inline-flex items-center gap-1"><Flame className="w-3 h-3" />+{localCombatView.playerStrength} {UI.str[lang]}</span>,
+                      localCombatView.playerVuln > 0 && <span key="player-vuln" className="text-purple-400 text-xs px-2 py-1 bg-purple-950/50 rounded border border-purple-900 drop-shadow inline-flex items-center gap-1"><Eye className="w-3 h-3" />{localCombatView.playerVuln} {UI.vuln[lang]}</span>
                     ].filter(Boolean)}
                     footer={
                       <>
-                        <div>{UI.turn[lang]}: <span className="text-slate-300 font-bold">{gameState.combat.turn}</span></div>
-                        <div>{UI.draw_pile[lang]}: <span className="text-slate-300 font-bold">{gameState.combat.drawPile.length}</span></div>
-                        <div>{UI.discard_pile[lang]}: <span className="text-slate-300 font-bold">{gameState.combat.discardPile.length}</span></div>
+                        <div>{UI.turn[lang]}: <span className="text-slate-300 font-bold">{localCombatView.turn}</span></div>
+                        <div>{UI.draw_pile[lang]}: <span className="text-slate-300 font-bold">{localCombatView.drawPile.length}</span></div>
+                        <div>{UI.discard_pile[lang]}: <span className="text-slate-300 font-bold">{localCombatView.discardPile.length}</span></div>
                       </>
                     }
                   />
@@ -3707,14 +5821,46 @@ export default function App() {
               </div>
 
               <div className="p-6 bg-slate-950/80 border-t border-slate-800 pr-16 md:pr-24">
+                {activeRoomVote && (
+                  <div className="mb-4 rounded-xl border border-amber-700/40 bg-amber-950/20 px-4 py-3 text-sm text-amber-100">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-semibold tracking-wide uppercase text-xs text-amber-300">Room Vote</span>
+                      <span className="font-mono text-amber-200">{roomVoteSecondsLeft}s</span>
+                    </div>
+                    <div className="mt-2 text-amber-100/90">
+                      Your vote: <span className="font-semibold">{activeRoomVote.votes?.[clientPlayerId] || 'pending'}</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-200/90">
+                      {(currentNode.choices || []).map((choice) => (
+                        <span key={choice.id} className="rounded-full border border-amber-800/50 bg-slate-950/50 px-2 py-1">
+                          {choice.label[lang] || choice.label.en}: {roomVoteCounts[choice.id] || 0}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {activeRewardState && (
+                  <div className="mb-4 rounded-xl border border-emerald-700/40 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-100">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-semibold tracking-wide uppercase text-xs text-emerald-300">Reward Picks</span>
+                      <span className="font-mono text-emerald-200">{rewardSecondsLeft}s</span>
+                    </div>
+                    <div className="mt-2 text-emerald-100/90">
+                      Your reward: <span className="font-semibold">{activeRewardState.perPlayer?.[clientPlayerId]?.choice?.choiceId || 'pending'}</span>
+                    </div>
+                    <div className="mt-2 text-xs text-emerald-200/80">
+                      Room will continue when all players choose or when the timer expires.
+                    </div>
+                  </div>
+                )}
                 <p className="text-xs text-slate-500 uppercase tracking-widest text-center mb-4">{UI.choose_path[lang]}</p>
                 <div className="flex flex-col gap-3">
                   {currentNode.choices.map((choice, index) => {
-                    const isDisabled = (choice.condition ? !choice.condition(gameState) : false) || isMazeMoving || isCombatResolving;
+                    const isDisabled = !isChoiceAvailable(choice, gameState) || isMazeMoving || isCombatResolving;
                     return (
                       <button
                         key={index}
-                        onClick={() => handleChoice(choice)}
+                        onClick={() => handleChoice(choice.id)}
                         disabled={isDisabled}
                         className={`
                           w-full text-left p-4 rounded-xl border transition-all duration-300 group relative overflow-hidden
@@ -3733,6 +5879,11 @@ export default function App() {
                           <div>
                             <div className={`font-bold text-lg mb-1 drop-shadow-sm ${isDisabled ? 'text-slate-600' : 'text-slate-200'}`}>
                               {choice.label[lang] || (typeof choice.label === 'string' ? choice.label : '')}
+                              {activeRoomVote && (
+                                <span className="ml-2 inline-flex rounded-full border border-amber-700/50 bg-amber-950/30 px-2 py-0.5 text-xs font-medium text-amber-200">
+                                  {roomVoteCounts[choice.id] || 0} vote{(roomVoteCounts[choice.id] || 0) === 1 ? '' : 's'}
+                                </span>
+                              )}
                             </div>
                             <div className={`text-sm leading-relaxed ${isDisabled ? 'text-slate-700' : 'text-slate-400'}`}>
                               {renderTextWithIcons(choice.effectText[lang] || (typeof choice.effectText === 'string' ? choice.effectText : ''))}
@@ -3756,9 +5907,9 @@ export default function App() {
         </div>
 
         {/* FLOATING CARD HAND */}
-        {gameState.combat?.active && (
+        {localCombatView?.active && (
           <div className="fixed bottom-2 sm:bottom-3 md:bottom-6 left-2 right-20 sm:right-28 md:left-auto md:right-40 w-auto md:w-[34rem] flex justify-end items-end h-44 sm:h-52 md:h-64 z-[200] pointer-events-none" style={{ perspective: '1000px' }}>
-            {gameState.combat.hand.map((card, idx) => {
+            {localCombatView.hand.map((card, idx) => {
                const tc = getTranslatedCard(card, lang);
                const cardType = tc.type || 'Skill';
                const rarity = tc.rarity || 'Common';
@@ -3789,7 +5940,7 @@ export default function App() {
                    ? 'text-[9px] sm:text-[10px] md:text-[12px] leading-[1.12]'
                    : 'text-[10px] sm:text-[11px] md:text-sm leading-snug';
                
-               const count = gameState.combat.hand.length;
+               const count = localCombatView.hand.length;
                const cardsFromRight = count - 1 - idx;
                const normalized = count <= 1 ? 0 : cardsFromRight / (count - 1);
                const maxFanAngle = Math.min(22, 8 + count * 2);
@@ -3818,10 +5969,10 @@ export default function App() {
                      onMouseEnter={() => setHoveredCardIndex(idx)}
                      onMouseLeave={() => setHoveredCardIndex(null)}
                      onClick={() => playCardInCombat(card, idx)}
-                     disabled={isCombatResolving}
+                     disabled={isCombatResolving || localCombatView.playerEndedTurn || localCombatView.phase !== 'player'}
                      className={`relative block w-24 h-36 sm:w-28 sm:h-40 md:w-40 md:h-56 rounded-xl border-2 flex flex-col items-center p-2 sm:p-3 text-left overflow-hidden pointer-events-auto ${bgClass} ${borderClass} transition-colors duration-200
                        ${isPlaying ? 'animate-play-card shadow-[0_0_50px_rgba(255,255,255,0.8)] border-white' : ''}
-                       ${!isCombatResolving && !isPlaying ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                       ${!isCombatResolving && !isPlaying && !localCombatView.playerEndedTurn && localCombatView.phase === 'player' ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                    >
                      <div className={`absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full ${isHovered ? 'animate-[shimmer_1.5s_infinite]' : ''}`}></div>
                      <div className="text-center font-bold text-[11px] sm:text-xs md:text-base text-slate-200 mb-1 sm:mb-2 w-full border-b border-slate-700/50 pb-1 sm:pb-2 drop-shadow-md relative z-10">
@@ -3843,6 +5994,22 @@ export default function App() {
                  </div>
                );
             })}
+          </div>
+        )}
+
+        {localCombatView?.active && (
+          <div className="fixed bottom-6 left-[21rem] z-[210]">
+            <button
+              onClick={endTurnInCombat}
+              disabled={isCombatResolving || localCombatView.playerEndedTurn || localCombatView.phase !== 'player'}
+              className={`px-5 py-3 rounded-xl border text-sm font-bold uppercase tracking-[0.18em] transition-colors ${
+                isCombatResolving || localCombatView.playerEndedTurn || localCombatView.phase !== 'player'
+                  ? 'bg-slate-900/70 border-slate-800 text-slate-500 cursor-not-allowed'
+                  : 'bg-amber-950/70 border-amber-500/40 text-amber-200 hover:bg-amber-900/70'
+              }`}
+            >
+              {localCombatView.playerEndedTurn ? 'Waiting' : 'End Turn'}
+            </button>
           </div>
         )}
 
